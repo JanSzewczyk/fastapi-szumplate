@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Annotated
 
 import pytest
 from fastapi import Depends, FastAPI
@@ -73,7 +74,7 @@ def test_log_format_resolves_from_environment(environment: str, log_format: str,
 
 def test_get_settings_returns_the_settings_of_the_running_app(app: FastAPI) -> None:
     @app.get("/_settings", operation_id="get_settings_probe")
-    def probe(settings: Settings = Depends(get_settings)) -> dict[str, str]:  # noqa: B008
+    def probe(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, str]:
         return {"name": settings.app_name}
 
     app.state.settings = make_settings(app_name="probe-app")

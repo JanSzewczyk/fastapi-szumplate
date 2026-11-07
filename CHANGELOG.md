@@ -62,4 +62,13 @@ All notable changes to this project are recorded here. The format follows
 - Records below the log level are dropped before any processor runs; stdlib records keep their
   `extra=` fields (redacted like the rest).
 - The OpenAPI `servers` entry is relative (`/`), so the docs call the host that serves them.
+- Stricter tooling: mypy `warn_unreachable` with nine extra error codes and the Pydantic plugin's
+  strict init; pytest `strict` mode with warnings as errors and required plugins; Ruff adds the
+  RUF, FAST, ASYNC, BLE, C4, SIM, RET, PIE, PERF, PGH, RSE, FLY, ISC, A, PLE, PLW, ARG, DTZ and TRY
+  families and formats code in docstrings.
+- Import contracts layer the core (entry point, factory, features, foundations) and keep uvicorn
+  in the entry point; they replace the "core never imports the factory" contract.
+- Packaging: `license = "MIT"` with the licence file in the wheel, a `Private :: Do Not Upload`
+  classifier, a `fastapi-szumplate` console script, a bounded hatchling and a minimum uv version.
+  Coverage also measures `scripts/`.
 <!-- end:template -->

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -548,7 +548,7 @@ def test_the_real_clock_lends_from_today() -> None:
     loan = borrow(client, book_id).json()
 
     borrowed = date.fromisoformat(loan["borrowed_on"])
-    assert abs((borrowed - date.today()).days) <= 1  # tolerates a UTC midnight crossing
+    assert abs((borrowed - datetime.now(UTC).date()).days) <= 1  # tolerates a UTC midnight crossing
     assert (date.fromisoformat(loan["due_on"]) - borrowed).days == 14
 
 

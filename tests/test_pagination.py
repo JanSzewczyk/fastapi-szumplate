@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
@@ -14,7 +16,7 @@ def paged_app(page_size: int) -> TestClient:
     app.state.settings = make_settings(default_page_size=page_size)
 
     @app.get("/numbers", operation_id="list_numbers")
-    def numbers(page: PageParams = Depends(get_page_params)) -> IntPage:  # noqa: B008
+    def numbers(page: Annotated[PageParams, Depends(get_page_params)]) -> IntPage:
         return IntPage(items=[], total=0, limit=page.limit, offset=page.offset)
 
     return TestClient(app)
