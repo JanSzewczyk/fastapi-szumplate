@@ -7,10 +7,12 @@ from typing import Final
 
 import structlog
 from starlette.datastructures import Headers, MutableHeaders
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from fastapi_szumplate.problems import unhandled_problem
+from fastapi_szumplate.problems import problem, unhandled_problem
 
 REQUEST_ID_HEADER: Final = "X-Request-ID"
 _VALID_REQUEST_ID: Final = re.compile(r"[A-Za-z0-9._-]{1,64}")
@@ -114,3 +116,38 @@ class UnhandledErrorMiddleware:
                 raise
             scope.setdefault("state", {})[_UNHANDLED_KEY] = exc
             await unhandled_problem(Request(scope, receive))(scope, receive, send)
+
+
+class _RefusedPreflight(Response):
+    """A refused CORS preflight, rendered as a Problem Details response once the scope is known."""
+
+    def __init__(self, refused: Response) -> None:
+        # Starlette's refusal is a 400 with fixed text ("Disallowed CORS origin, method, ...").
+        self.detail = bytes(refused.body).decode()
+        self.cors_headers = {
+            name: value
+            for name, value in refused.headers.items()
+            if not name.startswith("content-")
+        }
+        super().__init__(status_code=refused.status_code)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        response = problem(
+            Request(scope, receive),
+            status=self.status_code,
+            title="Bad Request",
+            detail=self.detail,
+            headers=self.cors_headers,
+        )
+        await response(scope, receive, send)
+
+
+class ProblemCORSMiddleware(CORSMiddleware):
+    """Starlette's CORS middleware, with a refused preflight answered as Problem Details."""
+
+    def preflight_response(self, request_headers: Headers) -> Response:
+        """Return Starlette's preflight answer, replacing a refusal by a problem."""
+        response = super().preflight_response(request_headers)
+        if response.status_code >= 400:
+            return _RefusedPreflight(response)
+        return response
