@@ -57,6 +57,13 @@ def add_probe_routes(app: FastAPI) -> FastAPI:
     def auth() -> None:
         raise HTTPException(401, "Bearer token required", headers={"WWW-Authenticate": "Bearer"})
 
+    @app.get("/probe/convert", operation_id="get_probe_convert")
+    def convert(value: str) -> int:
+        try:
+            return int(value)
+        except ValueError as err:
+            raise HTTPException(400, "value must be an integer") from err
+
     @app.get("/probe/refused", operation_id="get_probe_refused")
     def refused() -> None:
         raise Refused("not today")
