@@ -3,9 +3,8 @@ import json
 from typing import Any
 
 import pytest
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from fastapi_szumplate.main import create_app
@@ -13,63 +12,15 @@ from fastapi_szumplate.middleware import UnhandledErrorMiddleware
 from fastapi_szumplate.problems import (
     PROBLEM_MEDIA_TYPE,
     ProblemType,
-    domain_error_handler,
+    malformed_body_response,
     problem_response,
+    register_domain_errors,
 )
 from tests.conftest import make_settings
+from tests.probes import REFUSED, Refused
 
 PROBLEM_JSON = PROBLEM_MEDIA_TYPE
 JSON = {"Content-Type": "application/json"}
-
-
-class Payload(BaseModel):
-    name: str
-
-
-class Refused(Exception):
-    """Probe domain error."""
-
-
-REFUSED = ProblemType("probe-refused", "Probe refused", 409)
-
-
-@pytest.fixture
-def probe_app(app: FastAPI) -> FastAPI:
-    @app.get("/probe/thing", operation_id="get_probe_thing")
-    def get_thing() -> dict[str, str]:
-        return {}
-
-    @app.put("/probe/thing", operation_id="put_probe_thing")
-    def put_thing() -> dict[str, str]:
-        return {}
-
-    @app.get("/probe/limit", operation_id="get_probe_limit")
-    def limited(limit: int = Query(le=100)) -> dict[str, int]:
-        return {"limit": limit}
-
-    @app.post("/probe/body", operation_id="post_probe_body")
-    def post_body(payload: Payload) -> dict[str, str]:
-        return {"name": payload.name}
-
-    @app.get("/probe/boom", operation_id="get_probe_boom")
-    def boom() -> None:
-        raise RuntimeError("internal detail that must not leak")
-
-    @app.get("/probe/auth", operation_id="get_probe_auth")
-    def auth() -> None:
-        raise HTTPException(401, "Bearer token required", headers={"WWW-Authenticate": "Bearer"})
-
-    @app.get("/probe/refused", operation_id="get_probe_refused")
-    def refused() -> None:
-        raise Refused("not today")
-
-    app.add_exception_handler(Refused, domain_error_handler({Refused: REFUSED}))
-    return app
-
-
-@pytest.fixture
-def probe(probe_app: FastAPI) -> TestClient:
-    return TestClient(probe_app, raise_server_exceptions=False)
 
 
 def body_of(response: Any) -> dict[str, Any]:
@@ -255,3 +206,42 @@ def test_a_failure_in_the_outermost_middleware_is_still_a_500_problem() -> None:
     assert response.status_code == 500
     assert response.headers["content-type"] == PROBLEM_JSON
     assert "middleware failed" not in response.text
+
+
+class Missing(Exception):
+    """Probe: a parent error mapped once, raised through a subclass."""
+
+
+class MissingPart(Missing):
+    """Probe: has no mapping of its own."""
+
+
+MISSING = ProblemType("probe-missing", "Probe missing", 404)
+
+
+def test_register_domain_errors_maps_each_exception_and_its_subclasses_and_records_the_types(
+    probe_app: FastAPI,
+) -> None:
+    @probe_app.get("/probe/missing-part", operation_id="get_probe_missing_part")
+    def missing_part() -> None:
+        raise MissingPart("part 7")
+
+    register_domain_errors(probe_app, {Missing: MISSING, Refused: REFUSED})
+
+    response = TestClient(probe_app).get("/probe/missing-part")
+
+    body = body_of(response)
+    assert response.status_code == 404
+    assert (body["type"], body["detail"]) == (
+        "urn:problem:fastapi-szumplate:probe-missing",
+        "part 7",
+    )
+    assert MISSING in probe_app.state.problem_types
+    assert REFUSED in probe_app.state.problem_types
+
+
+def test_the_malformed_body_response_documents_a_problem_without_a_slug() -> None:
+    entry = malformed_body_response()
+
+    assert entry["content"] == {PROBLEM_JSON: {}}
+    assert "could not be read as text" in entry["description"]

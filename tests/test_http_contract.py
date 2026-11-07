@@ -1,8 +1,13 @@
-"""The HTTP contract through the real application, written from `openapi.json`.
+"""The HTTP contract of the template core, proved without any domain module.
 
-Cross-cutting rules that belong to no single module: every error is Problem Details with its
-own type, title and status; every response carries `X-Request-ID`; a wrong method is a 405 with
-`Allow`; a trailing slash is a 404; CORS and validation never leak what the client sent.
+Every case uses `/health`, `/health/ready` and the probe routes of `tests/probes.py`, so this file
+passes unchanged after `init_project.py --without-example` removes the example. Cases that need
+the example's routes live in `tests/library/test_http_contract.py`.
+
+Rules checked here: every error is Problem Details with its own type, title and status; every
+response carries `X-Request-ID`; a wrong method is a 405 with `Allow`; a trailing slash is a 404;
+CORS and validation never leak what the client sent; a 500 carries the request id and the CORS
+headers.
 """
 
 import re
@@ -17,119 +22,51 @@ from httpx2 import Response
 from fastapi_szumplate.health.readiness import register_readiness_check
 from fastapi_szumplate.main import create_app
 from tests.conftest import make_settings
-from tests.library.factories import book_payload, isbn_for
+from tests.probes import add_probe_routes
 
 PROBLEM = "application/problem+json"
 TYPE = "urn:problem:fastapi-szumplate:"
-MISSING_ID = "0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5e"
 JSON_BYTES = {"Content-Type": "application/json"}
 REQUEST_ID_SHAPE = re.compile(r"[A-Za-z0-9._-]{1,64}")
 PROBLEM_FIELDS = {"type", "title", "status", "detail", "errors", "request_id"}
+SECRET = "s3cr3t-hunter2"
+HTTP_METHODS = ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
+ORIGIN = "https://app.example.com"
 
-# Every path of the contract with the methods it documents.
-DOCUMENTED_METHODS = {
-    "/health": ["GET"],
-    "/health/ready": ["GET"],
-    "/v1/books": ["GET", "POST"],
-    "/v1/books/{book_id}": ["GET", "PUT"],
-    "/v1/loans": ["GET", "POST"],
-    "/v1/loans/{loan_id}": ["GET"],
-    "/v1/loans/{loan_id}/return": ["POST"],
-}
-
-
-def concrete(path: str) -> str:
-    return path.replace("{book_id}", MISSING_ID).replace("{loan_id}", MISSING_ID)
-
-
-def add_book(client: TestClient, number: int = 1, *, copies: int = 1) -> str:
-    response = client.post("/v1/books", json=book_payload(isbn=isbn_for(number), copies=copies))
-    assert response.status_code == 201
-    return str(response.json()["id"])
-
-
-def borrow(client: TestClient, book_id: str, member_id: str = "member-1") -> Response:
-    return client.post("/v1/loans", json={"book_id": book_id, "member_id": member_id})
-
-
-def raise_inside_a_route(app: FastAPI) -> None:
-    @app.get("/probe/boom", operation_id="get_probe_boom")
-    def boom() -> None:
-        raise RuntimeError("internal detail that must not leak")
-
-
-# Each sender builds the state it needs and returns the response that carries the error.
 type Sender = Callable[[TestClient, FastAPI], Response]
 
 
+def concrete(path: str) -> str:
+    """Fill each path parameter with a value that matches the route."""
+    return re.sub(r"\{[^}]+\}", "7", path)
+
+
 def send_unreadable_body(client: TestClient, app: FastAPI) -> Response:
-    return client.post("/v1/books", content=b"\xff\xfe\x00", headers=JSON_BYTES)
+    return client.post("/probe/body", content=b"\xff\xfe\x00", headers=JSON_BYTES)
 
 
 def send_unknown_path(client: TestClient, app: FastAPI) -> Response:
     return client.get("/no/such/path")
 
 
-def send_unknown_book(client: TestClient, app: FastAPI) -> Response:
-    return client.get(f"/v1/books/{MISSING_ID}")
-
-
-def send_update_of_unknown_book(client: TestClient, app: FastAPI) -> Response:
-    return client.put(f"/v1/books/{MISSING_ID}", json={"title": "T", "author": "A"})
-
-
-def send_unknown_loan(client: TestClient, app: FastAPI) -> Response:
-    return client.get(f"/v1/loans/{MISSING_ID}")
-
-
-def send_return_of_unknown_loan(client: TestClient, app: FastAPI) -> Response:
-    return client.post(f"/v1/loans/{MISSING_ID}/return")
-
-
-def send_loan_of_unknown_book(client: TestClient, app: FastAPI) -> Response:
-    return borrow(client, MISSING_ID)
-
-
 def send_wrong_method(client: TestClient, app: FastAPI) -> Response:
-    return client.delete("/v1/books")
+    return client.delete("/probe/thing")
 
 
-def send_duplicate_isbn(client: TestClient, app: FastAPI) -> Response:
-    add_book(client, 1)
-    return client.post("/v1/books", json=book_payload(isbn=isbn_for(1)))
-
-
-def send_already_borrowed(client: TestClient, app: FastAPI) -> Response:
-    book_id = add_book(client, 1, copies=2)
-    borrow(client, book_id)
-    return borrow(client, book_id)
-
-
-def send_member_over_the_limit(client: TestClient, app: FastAPI) -> Response:
-    for number in range(1, 4):
-        borrow(client, add_book(client, number))
-    return borrow(client, add_book(client, 4))
-
-
-def send_no_free_copy(client: TestClient, app: FastAPI) -> Response:
-    book_id = add_book(client, 1)
-    borrow(client, book_id, "member-1")
-    return borrow(client, book_id, "member-2")
-
-
-def send_second_return(client: TestClient, app: FastAPI) -> Response:
-    loan = borrow(client, add_book(client, 1)).json()
-    client.post(f"/v1/loans/{loan['id']}/return")
-    return client.post(f"/v1/loans/{loan['id']}/return")
-
-
-def send_return_before_borrow(client: TestClient, app: FastAPI) -> Response:
-    loan = borrow(client, add_book(client, 1)).json()
-    return client.post(f"/v1/loans/{loan['id']}/return", json={"returned_on": "2000-01-01"})
+def send_domain_refusal(client: TestClient, app: FastAPI) -> Response:
+    return client.get("/probe/refused")
 
 
 def send_invalid_query(client: TestClient, app: FastAPI) -> Response:
-    return client.get("/v1/books", params={"limit": 0})
+    return client.get("/probe/limit", params={"limit": 1000})
+
+
+def send_invalid_path_value(client: TestClient, app: FastAPI) -> Response:
+    return client.get("/probe/items/not-a-number")
+
+
+def send_invalid_body(client: TestClient, app: FastAPI) -> Response:
+    return client.post("/probe/body", json={"name": "x" * 11})
 
 
 def send_when_not_ready(client: TestClient, app: FastAPI) -> Response:
@@ -141,7 +78,6 @@ def send_when_not_ready(client: TestClient, app: FastAPI) -> Response:
 
 
 def send_when_the_server_fails(client: TestClient, app: FastAPI) -> Response:
-    raise_inside_a_route(app)
     return client.get("/probe/boom")
 
 
@@ -149,79 +85,35 @@ ERROR_CASES = [
     pytest.param(send_unreadable_body, 400, "about:blank", "Bad Request", id="400-unreadable-body"),
     pytest.param(send_unknown_path, 404, "about:blank", "Not Found", id="404-unknown-path"),
     pytest.param(
-        send_unknown_book, 404, f"{TYPE}book-not-found", "Book not found", id="404-get-book"
-    ),
-    pytest.param(
-        send_update_of_unknown_book,
-        404,
-        f"{TYPE}book-not-found",
-        "Book not found",
-        id="404-update-book",
-    ),
-    pytest.param(
-        send_loan_of_unknown_book,
-        404,
-        f"{TYPE}book-not-found",
-        "Book not found",
-        id="404-lend-unknown-book",
-    ),
-    pytest.param(
-        send_unknown_loan, 404, f"{TYPE}loan-not-found", "Loan not found", id="404-get-loan"
-    ),
-    pytest.param(
-        send_return_of_unknown_loan,
-        404,
-        f"{TYPE}loan-not-found",
-        "Loan not found",
-        id="404-return-loan",
-    ),
-    pytest.param(
         send_wrong_method, 405, "about:blank", "Method Not Allowed", id="405-wrong-method"
     ),
     pytest.param(
-        send_duplicate_isbn,
+        send_domain_refusal,
         409,
-        f"{TYPE}isbn-already-exists",
-        "ISBN already exists",
-        id="409-isbn-already-exists",
-    ),
-    pytest.param(
-        send_already_borrowed,
-        409,
-        f"{TYPE}already-borrowed",
-        "Member already has this book",
-        id="409-already-borrowed",
-    ),
-    pytest.param(
-        send_member_over_the_limit,
-        409,
-        f"{TYPE}member-limit-reached",
-        "Member loan limit reached",
-        id="409-member-limit-reached",
-    ),
-    pytest.param(
-        send_no_free_copy, 409, f"{TYPE}no-free-copy", "No free copy", id="409-no-free-copy"
-    ),
-    pytest.param(
-        send_second_return,
-        409,
-        f"{TYPE}loan-already-returned",
-        "Loan already returned",
-        id="409-loan-already-returned",
-    ),
-    pytest.param(
-        send_return_before_borrow,
-        409,
-        f"{TYPE}returned-before-borrowed",
-        "Returned before it was borrowed",
-        id="409-returned-before-borrowed",
+        f"{TYPE}probe-refused",
+        "Probe refused",
+        id="409-domain-refusal",
     ),
     pytest.param(
         send_invalid_query,
         422,
         f"{TYPE}validation-error",
         "Request validation failed",
-        id="422-validation-error",
+        id="422-invalid-query",
+    ),
+    pytest.param(
+        send_invalid_path_value,
+        422,
+        f"{TYPE}validation-error",
+        "Request validation failed",
+        id="422-invalid-path",
+    ),
+    pytest.param(
+        send_invalid_body,
+        422,
+        f"{TYPE}validation-error",
+        "Request validation failed",
+        id="422-invalid-body",
     ),
     pytest.param(
         send_when_not_ready,
@@ -240,18 +132,11 @@ ERROR_CASES = [
 ]
 
 
-@pytest.fixture
-def lenient(app: FastAPI) -> Iterator[TestClient]:
-    """A client that gets the 500 response instead of the re-raised exception."""
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
-
-
 @pytest.mark.parametrize(("send", "status", "type_", "title"), ERROR_CASES)
 def test_every_error_is_problem_details_with_its_own_type_title_and_status(
-    send: Sender, status: int, type_: str, title: str, app: FastAPI, lenient: TestClient
+    send: Sender, status: int, type_: str, title: str, probe_app: FastAPI, probe: TestClient
 ) -> None:
-    response = send(lenient, app)
+    response = send(probe, probe_app)
 
     body = response.json()
     assert response.status_code == status
@@ -264,10 +149,9 @@ def test_every_error_is_problem_details_with_its_own_type_title_and_status(
 
 @pytest.mark.parametrize(("send", "status", "type_", "title"), ERROR_CASES)
 def test_every_error_carries_the_request_id_in_the_header_and_the_body(
-    send: Sender, status: int, type_: str, title: str, app: FastAPI, lenient: TestClient
+    send: Sender, status: int, type_: str, title: str, probe_app: FastAPI, probe: TestClient
 ) -> None:
-    """Defect 1 is the 500 case: the body names a request id the response header lacks."""
-    response = send(lenient, app)
+    response = send(probe, probe_app)
 
     header = response.headers.get("X-Request-ID")
     assert header is not None, f"{status} has no X-Request-ID header"
@@ -277,33 +161,31 @@ def test_every_error_carries_the_request_id_in_the_header_and_the_body(
 
 @pytest.mark.parametrize(("send", "status", "type_", "title"), ERROR_CASES)
 def test_a_supplied_request_id_is_echoed_by_every_error(
-    send: Sender, status: int, type_: str, title: str, app: FastAPI
+    send: Sender, status: int, type_: str, title: str, probe_app: FastAPI
 ) -> None:
-    """Defect 1 is the 500 case: the header is missing although the body carries the id."""
     with TestClient(
-        app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}
+        probe_app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}
     ) as client:
-        response = send(client, app)
+        response = send(client, probe_app)
 
     assert response.headers.get("X-Request-ID") == "client-id-7"
     assert response.json()["request_id"] == "client-id-7"
 
 
 @pytest.mark.parametrize(
-    ("method", "path", "expected"),
+    ("path", "expected"),
     [
-        ("GET", "/health", 200),
-        ("GET", "/health/ready", 200),
-        ("GET", "/v1/books", 200),
-        ("GET", "/v1/loans", 200),
-        ("POST", "/v1/books", 201),
+        ("/health", 200),
+        ("/health/ready", 200),
+        ("/probe/thing", 200),
+        ("/probe/items/7", 200),
     ],
-    ids=["health", "ready", "list-books", "list-loans", "create-book"],
+    ids=["health", "ready", "probe", "probe-with-path-value"],
 )
 def test_successful_responses_carry_a_request_id_too(
-    client: TestClient, method: str, path: str, expected: int
+    probe: TestClient, path: str, expected: int
 ) -> None:
-    response = client.request(method, path, json=book_payload() if method == "POST" else None)
+    response = probe.get(path)
 
     assert response.status_code == expected
     assert REQUEST_ID_SHAPE.fullmatch(response.headers["X-Request-ID"])
@@ -331,49 +213,54 @@ def test_an_unsafe_request_id_is_replaced_on_an_error_too(
     assert response.json()["request_id"] == header
 
 
-def test_the_table_of_methods_in_this_file_is_the_contract(app: FastAPI) -> None:
-    paths = app.openapi()["paths"]
-
-    documented = {path: sorted(method.upper() for method in item) for path, item in paths.items()}
-    assert documented == DOCUMENTED_METHODS
-
-
-UNDOCUMENTED = [
-    pytest.param(path, method, id=f"{method} {path}")
-    for path, allowed in DOCUMENTED_METHODS.items()
-    for method in ("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
-    if method not in allowed
-]
-
-
-@pytest.mark.parametrize(("path", "method"), UNDOCUMENTED)
-def test_a_method_the_path_does_not_have_is_a_405_listing_the_ones_it_has(
-    client: TestClient, path: str, method: str
+def test_a_wrong_method_lists_every_method_of_a_path_that_has_two_routes(
+    probe: TestClient,
 ) -> None:
-    response = client.request(method, concrete(path))
+    """Starlette alone reports the methods of the first matching route (`GET`)."""
+    response = probe.delete("/probe/thing")
 
-    allow = {m.strip() for m in response.headers["Allow"].split(",")}
     assert response.status_code == 405
-    assert allow == set(DOCUMENTED_METHODS[path])
-    if method != "HEAD":  # a HEAD answer has no body by definition
-        assert response.headers["content-type"] == PROBLEM
-        assert response.json()["title"] == "Method Not Allowed"
+    assert response.headers["Allow"] == "GET, PUT"
 
 
-@pytest.mark.parametrize("path", sorted(DOCUMENTED_METHODS))
-def test_a_trailing_slash_is_a_404_problem_not_a_redirect(client: TestClient, path: str) -> None:
-    method = DOCUMENTED_METHODS[path][0]
+def test_every_documented_path_answers_a_method_it_lacks_with_a_405_listing_its_methods(
+    probe_app: FastAPI, probe: TestClient
+) -> None:
+    """Walks the spec of whatever the app serves, probes included; nothing here names a module."""
+    paths = probe_app.openapi()["paths"]
+    assert {"/health", "/health/ready", "/probe/thing"} <= set(paths)
 
-    response = client.request(method, concrete(path) + "/", follow_redirects=False)
+    for path, item in paths.items():
+        documented = sorted(method.upper() for method in item)
+        for method in HTTP_METHODS:
+            if method in documented:
+                continue
+            response = probe.request(method, concrete(path))
 
-    assert response.status_code == 404
-    assert "location" not in response.headers
-    assert response.headers["content-type"] == PROBLEM
+            where = f"{method} {path}"
+            allow = sorted(m.strip() for m in response.headers["Allow"].split(","))
+            assert response.status_code == 405, where
+            assert allow == documented, where
+            if method != "HEAD":  # a HEAD answer has no body by definition
+                assert response.headers["content-type"] == PROBLEM, where
+                assert response.json()["title"] == "Method Not Allowed", where
 
 
-@pytest.mark.parametrize(
-    "path", ["/", "/v1", "/v2/books", "/books", "/health/live", "/v1/books/x/y", "/v1/loans/x/y/z"]
-)
+def test_every_documented_path_answers_a_trailing_slash_with_a_404_problem_not_a_redirect(
+    probe_app: FastAPI, probe: TestClient
+) -> None:
+    paths = probe_app.openapi()["paths"]
+
+    for path, item in paths.items():
+        method = next(iter(item)).upper()
+        response = probe.request(method, concrete(path) + "/", follow_redirects=False)
+
+        assert response.status_code == 404, path
+        assert "location" not in response.headers, path
+        assert response.headers["content-type"] == PROBLEM, path
+
+
+@pytest.mark.parametrize("path", ["/", "/probe", "/probe/thing/extra", "/health/live", "/v2/x"])
 def test_an_unknown_path_is_a_404_problem(client: TestClient, path: str) -> None:
     response = client.get(path)
 
@@ -381,145 +268,72 @@ def test_an_unknown_path_is_a_404_problem(client: TestClient, path: str) -> None
     assert response.headers["content-type"] == PROBLEM
 
 
-def test_a_validation_error_never_echoes_what_the_client_sent(client: TestClient) -> None:
-    secret = "s3cr3t-hunter2"
+def test_a_route_outside_the_spec_still_answers_a_wrong_method_with_its_own_allow(
+    app: FastAPI, client: TestClient
+) -> None:
+    @app.get("/internal/ping", include_in_schema=False)
+    def ping() -> dict[str, str]:
+        return {}
+
+    response = client.post("/internal/ping")
+
+    assert response.status_code == 405
+    assert response.headers["Allow"] == "GET"
+    assert response.headers["content-type"] == PROBLEM
+
+
+def test_a_validation_error_never_echoes_what_the_client_sent(probe: TestClient) -> None:
     payloads = [
-        {"isbn": secret, "title": secret, "author": secret, "copies": secret},
-        {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": 1, "password": secret},
-        {"isbn": isbn_for(1), "title": "x" * 201, "author": "A", "copies": 1},
+        {"name": SECRET},
+        {"name": "ok", "password": SECRET},
+        {"name": "y" * 11, "password": SECRET},
     ]
 
     for payload in payloads:
-        response = client.post("/v1/books", json=payload)
+        response = probe.post("/probe/body", json=payload)
 
         assert response.status_code == 422
-        assert secret not in response.text
-        assert "x" * 201 not in response.text
+        assert SECRET not in response.text
+        assert "y" * 11 not in response.text
         for issue in response.json()["errors"]:
             assert set(issue) == {"loc", "msg", "type"}
             assert issue["loc"][0] == "body"
 
 
 def test_a_validation_error_in_the_path_or_query_never_echoes_the_value(
-    client: TestClient,
+    probe: TestClient,
 ) -> None:
     for response in (
-        client.get("/v1/books/s3cr3t-hunter2"),
-        client.get("/v1/loans", params={"active": "s3cr3t-hunter2"}),
-        client.get("/v1/loans", params={"limit": "s3cr3t-hunter2", "offset": "s3cr3t-hunter2"}),
+        probe.get(f"/probe/items/{SECRET}"),
+        probe.get("/probe/limit", params={"limit": SECRET}),
+        probe.get("/probe/limit", params={"limit": SECRET, "offset": SECRET}),
     ):
         assert response.status_code == 422
-        assert "s3cr3t-hunter2" not in response.text
+        assert SECRET not in response.text
 
 
-def test_a_path_validation_error_names_the_parameter(
-    client: TestClient,
-) -> None:
-    assert client.get("/v1/books/not-a-uuid").json()["errors"][0]["loc"] == ["path", "book_id"]
+def test_a_path_validation_error_names_the_parameter(probe: TestClient) -> None:
+    errors = probe.get("/probe/items/not-a-number").json()["errors"]
+
+    assert errors[0]["loc"] == ["path", "item_id"]
 
 
-class TestCors:
-    ORIGIN = "https://app.example.com"
-
-    @pytest.fixture
-    def cors(self) -> Iterator[TestClient]:
-        app = create_app(make_settings(cors_origins=[self.ORIGIN]))
-        with TestClient(app) as test_client:
-            yield test_client
-
-    @pytest.mark.parametrize(
-        ("method", "path", "status"),
-        [("GET", "/v1/books/" + MISSING_ID, 404), ("GET", "/v1/books?limit=0", 422)],
-        ids=["404", "422"],
-    )
-    def test_error_responses_carry_the_cors_headers(
-        self, cors: TestClient, method: str, path: str, status: int
-    ) -> None:
-        response = cors.request(method, path, headers={"Origin": self.ORIGIN})
-
-        assert response.status_code == status
-        assert response.headers["access-control-allow-origin"] == self.ORIGIN
-        assert "X-Request-ID" in response.headers["access-control-expose-headers"]
-        assert response.headers["content-type"] == PROBLEM
-
-    def test_an_origin_outside_the_list_gets_no_cors_headers(self, cors: TestClient) -> None:
-        response = cors.get("/health", headers={"Origin": "https://evil.example.com"})
-
-        assert response.status_code == 200
-        assert "access-control-allow-origin" not in response.headers
-
-    def test_a_preflight_allows_only_the_declared_methods_and_no_credentials(
-        self, cors: TestClient
-    ) -> None:
-        response = cors.options(
-            "/v1/books",
-            headers={
-                "Origin": self.ORIGIN,
-                "Access-Control-Request-Method": "POST",
-                "Access-Control-Request-Headers": "content-type",
-            },
-        )
-
-        allowed = {m.strip() for m in response.headers["access-control-allow-methods"].split(",")}
-        assert response.status_code == 200
-        assert "PATCH" not in allowed
-        assert {"GET", "POST", "PUT"} <= allowed
-        assert "access-control-allow-credentials" not in response.headers
-        assert response.headers["access-control-allow-origin"] == self.ORIGIN
-
-    @pytest.mark.parametrize(
-        "headers",
-        [
-            {"Access-Control-Request-Method": "PATCH"},
-            {"Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"},
-            {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "x-evil"},
-        ],
-        ids=["method", "origin", "header"],
-    )
-    def test_a_refused_preflight_is_a_400(self, cors: TestClient, headers: dict[str, str]) -> None:
-        response = cors.options("/v1/books", headers={"Origin": self.ORIGIN, **headers})
-
-        assert response.status_code == 400
-
-    @pytest.mark.parametrize(
-        "headers",
-        [
-            {"Access-Control-Request-Method": "PATCH"},
-            {"Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"},
-            {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "x-evil"},
-        ],
-        ids=["method", "origin", "header"],
-    )
-    def test_defect_4_a_refused_preflight_is_a_problem_not_plain_text(
-        self, cors: TestClient, headers: dict[str, str]
-    ) -> None:
-        """Defect 4 (stricter reading): `info.description` says every error is Problem Details."""
-        response = cors.options("/v1/books", headers={"Origin": self.ORIGIN, **headers})
-
-        assert response.headers["content-type"] == PROBLEM
-        assert response.json()["status"] == 400
-
-    def test_without_cors_a_preflight_is_a_405_problem(self, client: TestClient) -> None:
-        response = client.options(
-            "/v1/books",
-            headers={"Origin": self.ORIGIN, "Access-Control-Request-Method": "POST"},
-        )
-
-        assert response.status_code == 405
-        assert response.headers["content-type"] == PROBLEM
+def test_the_health_payloads_are_exactly_the_documented_ones(client: TestClient) -> None:
+    assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/health/ready").json() == {"status": "ready", "checks": {}}
 
 
 def test_a_failed_readiness_check_does_not_leak_into_other_routes(
-    app: FastAPI, client: TestClient
+    probe_app: FastAPI, probe: TestClient
 ) -> None:
     def broken() -> None:
         raise ConnectionError("db password is hunter2")
 
-    register_readiness_check(app, "database", broken)
+    register_readiness_check(probe_app, "database", broken)
 
-    assert client.get("/health/ready").status_code == 503
-    assert client.get("/health").status_code == 200
-    assert client.get("/v1/books").status_code == 200
+    assert probe.get("/health/ready").status_code == 503
+    assert probe.get("/health").status_code == 200
+    assert probe.get("/probe/thing").status_code == 200
 
 
 def test_readiness_names_every_failed_check_sorted_and_the_passing_ones_are_not_listed(
@@ -538,64 +352,113 @@ def test_readiness_names_every_failed_check_sorted_and_the_passing_ones_are_not_
     assert "hunter2" not in str(body)
 
 
-def test_the_health_payloads_are_exactly_the_documented_ones(client: TestClient) -> None:
-    assert client.get("/health").json() == {"status": "ok"}
-    assert client.get("/health/ready").json() == {"status": "ready", "checks": {}}
+class TestUnhandledError:
+    """The 500 is answered by `UnhandledErrorMiddleware`, inside request context and CORS."""
+
+    def test_it_is_the_generic_problem_without_the_exception_text(self, probe: TestClient) -> None:
+        response = probe.get("/probe/boom")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "The server failed to process the request."
+        assert "internal detail" not in response.text
+
+    def test_the_header_and_the_body_name_the_same_request_id(self, probe: TestClient) -> None:
+        response = probe.get("/probe/boom")
+
+        assert response.headers["X-Request-ID"] == response.json()["request_id"]
 
 
-def test_every_success_status_of_the_contract_is_reachable(client: TestClient) -> None:
-    """200 and 201 for each operation, in one story, so a documented status never goes dead."""
-    book_id = add_book(client, 1, copies=2)
-    loan = borrow(client, book_id)
+class TestCors:
+    @pytest.fixture
+    def cors_app(self) -> FastAPI:
+        return add_probe_routes(create_app(make_settings(cors_origins=[ORIGIN])))
 
-    statuses = {
-        "get_health": client.get("/health").status_code,
-        "get_readiness": client.get("/health/ready").status_code,
-        "list_books": client.get("/v1/books").status_code,
-        "get_book": client.get(f"/v1/books/{book_id}").status_code,
-        "update_book": client.put(
-            f"/v1/books/{book_id}", json={"title": "T", "author": "A"}
-        ).status_code,
-        "create_loan": loan.status_code,
-        "list_loans": client.get("/v1/loans").status_code,
-        "get_loan": client.get(f"/v1/loans/{loan.json()['id']}").status_code,
-        "return_loan": client.post(f"/v1/loans/{loan.json()['id']}/return").status_code,
-    }
+    @pytest.fixture
+    def cors(self, cors_app: FastAPI) -> Iterator[TestClient]:
+        with TestClient(cors_app, raise_server_exceptions=False) as test_client:
+            yield test_client
 
-    assert statuses == {
-        "get_health": 200,
-        "get_readiness": 200,
-        "list_books": 200,
-        "get_book": 200,
-        "update_book": 200,
-        "create_loan": 201,
-        "list_loans": 200,
-        "get_loan": 200,
-        "return_loan": 200,
-    }
+    @pytest.mark.parametrize(
+        ("path", "status"),
+        [("/no/such/path", 404), ("/probe/limit?limit=1000", 422), ("/probe/boom", 500)],
+        ids=["404", "422", "500"],
+    )
+    def test_error_responses_carry_the_cors_headers(
+        self, cors: TestClient, path: str, status: int
+    ) -> None:
+        response = cors.get(path, headers={"Origin": ORIGIN})
 
+        assert response.status_code == status
+        assert response.headers["access-control-allow-origin"] == ORIGIN
+        assert "X-Request-ID" in response.headers["access-control-expose-headers"]
+        assert response.headers["content-type"] == PROBLEM
 
-def test_the_documented_responses_match_the_bodies_the_app_sends(client: TestClient) -> None:
-    """A 201 and a 200 body have exactly the fields the schemas name, no more."""
-    book = client.post("/v1/books", json=book_payload(isbn=isbn_for(1))).json()
-    loan = borrow(client, book["id"]).json()
-    page: dict[str, Any] = client.get("/v1/loans").json()
+    def test_a_500_carries_the_cors_headers_and_the_request_id_together(
+        self, cors: TestClient
+    ) -> None:
+        response = cors.get("/probe/boom", headers={"Origin": ORIGIN})
 
-    assert set(book) == {"id", "isbn", "title", "author", "copies"}
-    assert set(loan) == {"id", "book_id", "member_id", "borrowed_on", "due_on", "returned_on"}
-    assert set(page) == {"items", "total", "limit", "offset"}
-    assert set(page["items"][0]) == set(loan)
+        assert response.headers["access-control-allow-origin"] == ORIGIN
+        assert response.headers["X-Request-ID"] == response.json()["request_id"]
 
+    def test_an_origin_outside_the_list_gets_no_cors_headers(self, cors: TestClient) -> None:
+        response = cors.get("/health", headers={"Origin": "https://evil.example.com"})
 
-def test_a_route_outside_the_spec_still_answers_a_wrong_method_with_its_own_allow(
-    app: FastAPI, client: TestClient
-) -> None:
-    @app.get("/internal/ping", include_in_schema=False)
-    def ping() -> dict[str, str]:
-        return {}
+        assert response.status_code == 200
+        assert "access-control-allow-origin" not in response.headers
 
-    response = client.post("/internal/ping")
+    def test_a_preflight_allows_only_the_declared_methods_and_no_credentials(
+        self, cors: TestClient
+    ) -> None:
+        response = cors.options(
+            "/probe/thing",
+            headers={
+                "Origin": ORIGIN,
+                "Access-Control-Request-Method": "PUT",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
 
-    assert response.status_code == 405
-    assert response.headers["Allow"] == "GET"
-    assert response.headers["content-type"] == PROBLEM
+        allowed = {m.strip() for m in response.headers["access-control-allow-methods"].split(",")}
+        assert response.status_code == 200
+        assert "PATCH" not in allowed
+        assert {"GET", "POST", "PUT"} <= allowed
+        assert "access-control-allow-credentials" not in response.headers
+        assert response.headers["access-control-allow-origin"] == ORIGIN
+
+    REFUSALS = pytest.mark.parametrize(
+        "headers",
+        [
+            {"Access-Control-Request-Method": "PATCH"},
+            {"Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"},
+            {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "x-evil"},
+        ],
+        ids=["method", "origin", "header"],
+    )
+
+    @REFUSALS
+    def test_a_refused_preflight_is_a_400(self, cors: TestClient, headers: dict[str, str]) -> None:
+        response = cors.options("/probe/thing", headers={"Origin": ORIGIN, **headers})
+
+        assert response.status_code == 400
+
+    @REFUSALS
+    def test_a_refused_preflight_is_a_problem_not_plain_text(
+        self, cors: TestClient, headers: dict[str, str]
+    ) -> None:
+        """`info.description` promises that every error is Problem Details."""
+        response = cors.options("/probe/thing", headers={"Origin": ORIGIN, **headers})
+
+        body: dict[str, Any] = response.json()
+        assert response.headers["content-type"] == PROBLEM
+        assert body["status"] == 400
+        assert body["request_id"] == response.headers["X-Request-ID"]
+
+    def test_without_cors_a_preflight_is_a_405_problem(self, probe: TestClient) -> None:
+        response = probe.options(
+            "/probe/thing",
+            headers={"Origin": ORIGIN, "Access-Control-Request-Method": "PUT"},
+        )
+
+        assert response.status_code == 405
+        assert response.headers["content-type"] == PROBLEM
