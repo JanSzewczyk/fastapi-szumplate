@@ -37,7 +37,7 @@ The API listens on http://127.0.0.1:8000. The interactive docs (`/docs`, `/redoc
 in your `.env` to read them while you develop; leave them off on a public API.
 
 Start it with `python -m fastapi_szumplate`, not with the `uvicorn` command. The module
-configures logging once and tells uvicorn to leave it alone (`log_config=None`) and to skip its own
+configures logging before it starts uvicorn and tells uvicorn to leave it alone (`log_config=None`) and to skip its own
 access log. If you must use the CLI, pass `--factory` (`uvicorn fastapi_szumplate.main:create_app
 --factory`); you then get uvicorn's default log format next to ours.
 

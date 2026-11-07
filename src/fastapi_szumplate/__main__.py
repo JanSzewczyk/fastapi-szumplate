@@ -7,7 +7,7 @@ from fastapi_szumplate.logging_config import configure_logging
 
 
 def main() -> None:
-    """Configure logging once, then run uvicorn on the app factory."""
+    """Configure logging, then run uvicorn on the app factory (which configures it again)."""
     settings = Settings()
     configure_logging(settings)
     uvicorn.run(
