@@ -15,7 +15,16 @@ def project(tmp_path: Path) -> Path:
     ignore = shutil.ignore_patterns("__pycache__")
     shutil.copytree(ROOT / "src", tmp_path / "src", ignore=ignore)
     shutil.copytree(ROOT / "tests" / "library", tmp_path / "tests" / "library", ignore=ignore)
-    for name in ("pyproject.toml", ".env.example", "README.md", "Makefile"):
+    for name in (
+        "pyproject.toml",
+        ".env.example",
+        "README.md",
+        "Makefile",
+        ".github/workflows/ci.yml",
+        "scripts/init_project.py",
+        "tests/test_init_project.py",
+    ):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / name, tmp_path / name)
     return tmp_path
 
@@ -53,6 +62,19 @@ def test_without_example_removes_the_domain_its_hook_settings_and_contracts(
     ]["contracts"]
     assert contracts
     assert all(".library" not in str(contract) for contract in contracts)
+
+
+def test_the_template_only_machinery_is_removed(project: Path) -> None:
+    init_project.main(["orders-api", "--root", str(project)])
+
+    assert not (project / "scripts" / "init_project.py").exists()
+    assert not (project / "tests" / "test_init_project.py").exists()
+    ci = (project / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "template-smoke" not in ci
+    assert "free-threaded" in ci
+    readme = (project / "README.md").read_text(encoding="utf-8")
+    assert "## Use it" not in readme
+    assert "## Run it" in readme
 
 
 @pytest.mark.parametrize("name", ["Orders", "orders_api", "orders-", "1orders", ""])
