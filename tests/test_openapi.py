@@ -11,8 +11,10 @@ from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
 
 from fastapi_szumplate.main import create_app
+from fastapi_szumplate.openapi import add_tags
 from fastapi_szumplate.problems import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR
 from tests.conftest import make_settings
+from tests.probes import add_probe_routes
 
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options"}
 
@@ -159,10 +161,27 @@ def test_docs_on_serve_html_pages_and_the_committed_document() -> None:
 
 
 def test_docs_on_do_not_change_how_the_api_answers() -> None:
-    client = TestClient(create_app(make_settings(docs_enabled=True)))
+    app = add_probe_routes(create_app(make_settings(docs_enabled=True)))
+    client = TestClient(app)
 
-    response = client.get("/v1/books/not-a-uuid")
+    response = client.get("/probe/items/not-a-number")
 
     assert response.status_code == 422
     assert response.headers["content-type"] == PROBLEM_MEDIA_TYPE
-    assert client.delete("/v1/books").headers["Allow"] == "GET, POST"
+    assert client.delete("/probe/thing").headers["Allow"] == "GET, PUT"
+
+
+def test_add_tags_appends_to_the_tags_the_app_already_has() -> None:
+    app = FastAPI(openapi_tags=[{"name": "first", "description": "One."}])
+
+    add_tags(app, {"name": "second", "description": "Two."})
+
+    assert [tag["name"] for tag in app.openapi_tags or []] == ["first", "second"]
+
+
+def test_add_tags_works_on_an_app_without_tags() -> None:
+    app = FastAPI()
+
+    add_tags(app, {"name": "only", "description": "Alone."})
+
+    assert app.openapi_tags == [{"name": "only", "description": "Alone."}]
