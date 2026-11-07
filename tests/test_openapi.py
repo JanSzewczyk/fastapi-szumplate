@@ -117,7 +117,7 @@ def test_metadata_describes_the_api(spec: dict[str, Any]) -> None:
     assert info["license"]["name"] == "MIT"
     assert info["contact"]["name"]
     assert info["description"]
-    assert spec["servers"]
+    assert spec["servers"] == [{"url": "/", "description": "The host that serves this document"}]
     assert {tag["name"] for tag in spec["tags"]} >= {"health"}
 
 

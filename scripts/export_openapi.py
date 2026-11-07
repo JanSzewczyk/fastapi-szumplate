@@ -1,7 +1,7 @@
 """Write the app's OpenAPI document to `openapi.json`, or check that the committed one is current.
 
-The document is generated from the app and never edited by hand. Settings ignore `.env`, and the
-document does not depend on the environment, so the output is the same on every machine.
+The document is generated from the app and never edited by hand. The settings come from the code
+defaults only, never from `.env` or environment variables, so the output is the same on every machine.
 
 Usage: `python scripts/export_openapi.py [--check] [PATH]`
 """
@@ -11,15 +11,33 @@ import json
 import sys
 from pathlib import Path
 
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+
 from fastapi_szumplate.config import Settings
 from fastapi_szumplate.main import create_app
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "openapi.json"
 
 
+class DefaultSettings(Settings):
+    """Settings built from the code defaults and explicit arguments, ignoring `.env` and the environment."""
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Keep only the arguments passed to the constructor."""
+        return (init_settings,)
+
+
 def render() -> str:
     """Return the OpenAPI document as stable JSON: sorted keys, two-space indent, final newline."""
-    app = create_app(Settings(_env_file=None))
+    app = create_app(DefaultSettings())
     return json.dumps(app.openapi(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 

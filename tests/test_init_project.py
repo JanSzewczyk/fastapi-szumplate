@@ -70,6 +70,15 @@ def test_without_example_removes_the_domain_its_hook_settings_and_contracts(
     assert all(".library" not in str(contract) for contract in contracts)
 
 
+def test_without_example_keeps_a_table_that_follows_the_contracts(project: Path) -> None:
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text(pyproject.read_text(encoding="utf-8") + "\n[tool.after_contracts]\nkept = true\n", "utf-8")
+
+    init_project.main(["orders-api", "--without-example", "--root", str(project)])
+
+    assert tomllib.loads(pyproject.read_text(encoding="utf-8"))["tool"]["after_contracts"] == {"kept": True}
+
+
 def test_without_example_leaves_no_line_that_names_the_example(project: Path) -> None:
     init_project.main(["orders-api", "--without-example", "--root", str(project)])
 

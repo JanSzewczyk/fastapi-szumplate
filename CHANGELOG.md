@@ -44,9 +44,22 @@ All notable changes to this project are recorded here. The format follows
   `ValueError` keeps its status and detail.
 - A request that fails after its response started is logged at `error` with `aborted_by`, not as
   an `info` line with the status that was sent.
+- Key redaction also masks read-only mappings (Starlette `Headers`, `QueryParams`) and mappings
+  inside lists and tuples.
+- An `HTTPException` with a status that forbids content (204, 205, 304) has no body; one with a
+  status `http.HTTPStatus` does not know (499) keeps it instead of turning into a 500; a detail
+  that is not text is left out instead of being stringified.
+- `make openapi-check` no longer depends on environment variables such as `APP_NAME`.
+- `init_project.py --without-example` keeps a `pyproject.toml` table placed after the
+  import-linter contracts.
 
 ### Changed
 
 - Dependency floors raised to the locked versions; CI actions pinned to verified versions.
 - Coverage threshold raised from 90 to 95.
+- uvicorn no longer sends a `server` header and gives open requests `GRACEFUL_SHUTDOWN_SECONDS`
+  (20) after SIGTERM instead of waiting without limit.
+- Records below the log level are dropped before any processor runs; stdlib records keep their
+  `extra=` fields (redacted like the rest).
+- The OpenAPI `servers` entry is relative (`/`), so the docs call the host that serves them.
 <!-- end:template -->

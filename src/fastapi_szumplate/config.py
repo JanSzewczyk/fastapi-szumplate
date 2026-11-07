@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1", description="Interface the server binds to.")
     port: int = Field(default=8000, ge=1, le=65535, description="Port the server listens on.")
     reload: bool = Field(default=False, description="Restart the server on code changes.")
+    graceful_shutdown_seconds: int = Field(
+        default=20,
+        ge=0,
+        description="Seconds open requests get to finish after SIGTERM; keep below the orchestrator's grace period.",
+    )
 
     default_page_size: int = Field(
         default=20, ge=1, le=100, description="Page size when a list request gives no limit."

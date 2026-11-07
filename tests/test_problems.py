@@ -3,7 +3,7 @@ import json
 from typing import Any
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -58,6 +58,43 @@ def test_http_exception_keeps_its_headers(probe: TestClient) -> None:
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"] == "Bearer"
     assert body_of(response)["detail"] == "Bearer token required"
+
+
+@pytest.fixture
+def raising() -> TestClient:
+    """A client for an app with one route that raises the `HTTPException` the query describes."""
+    app = create_app(make_settings())
+
+    @app.get("/raise", operation_id="get_raise")
+    def raise_it(status: int, structured: bool = False) -> None:
+        raise HTTPException(status, {"code": "conflict", "id": 1} if structured else None)
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.mark.parametrize("status", [204, 205, 304])
+def test_an_http_exception_with_a_status_that_forbids_content_has_no_body(raising: TestClient, status: int) -> None:
+    response = raising.get("/raise", params={"status": status})
+
+    assert response.status_code == status
+    assert response.content == b""
+    assert "content-type" not in response.headers
+    assert response.headers["X-Request-ID"]
+
+
+def test_an_http_exception_with_a_status_http_does_not_know_keeps_it(raising: TestClient) -> None:
+    response = raising.get("/raise", params={"status": 499})
+
+    assert response.status_code == 499
+    assert body_of(response)["title"] == "Error"
+
+
+def test_an_http_exception_with_a_structured_detail_leaves_it_out(raising: TestClient) -> None:
+    response = raising.get("/raise", params={"status": 409, "structured": True})
+
+    body = body_of(response)
+    assert (response.status_code, body["title"]) == (409, "Conflict")
+    assert "detail" not in body
 
 
 def test_validation_error_names_the_field_and_never_echoes_the_input(probe: TestClient) -> None:

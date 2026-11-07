@@ -2,7 +2,7 @@
 
 import logging
 import sys
-from collections.abc import MutableMapping
+from collections.abc import Mapping
 from typing import Any, Final
 
 import structlog
@@ -13,6 +13,8 @@ from fastapi_szumplate.config import Settings
 SENSITIVE_PARTS: Final = ("password", "token", "authorization", "api_key", "secret", "cookie")
 REDACTED: Final = "***"
 _HANDLER_TAG: Final = "_fastapi_szumplate_handler"
+# Extras uvicorn attaches to its own records; they repeat the message.
+_NOISY_EXTRAS: Final = ("color_message",)
 
 
 class _StdoutHandler(logging.StreamHandler[Any]):
@@ -32,8 +34,11 @@ class _StdoutHandler(logging.StreamHandler[Any]):
 
 
 def _redact_value(value: Any) -> Any:
-    if isinstance(value, MutableMapping):
+    # Any mapping, read-only ones such as Starlette `Headers` too, and mappings inside sequences.
+    if isinstance(value, Mapping):
         return {key: _redact_entry(key, item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_redact_value(item) for item in value]
     return value
 
 
@@ -44,12 +49,19 @@ def _redact_entry(key: object, value: Any) -> Any:
 
 
 def redact(_logger: object, _method: str, event_dict: EventDict) -> EventDict:
-    """Mask the value of every key that looks sensitive, also inside nested mappings.
+    """Mask the value of every key that looks sensitive, also inside nested mappings and sequences.
 
     This is defence in depth: a secret inside a message, a value or a traceback still leaks.
     """
     for key in list(event_dict):
         event_dict[key] = _redact_entry(key, event_dict[key])
+    return event_dict
+
+
+def _drop_noisy_extras(_logger: object, _method: str, event_dict: EventDict) -> EventDict:
+    """Remove the extras that only duplicate the message of a stdlib record."""
+    for key in _NOISY_EXTRAS:
+        event_dict.pop(key, None)
     return event_dict
 
 
@@ -78,8 +90,12 @@ def configure_logging(settings: Settings) -> None:
         )  # not the rich formatter: it prints the locals
         final = []
 
+    # Records of other libraries also keep the fields they pass as `extra=`; `redact` sees them.
+    foreign: list[Processor] = [structlog.stdlib.ExtraAdder(), _drop_noisy_extras, *shared]
+
     structlog.configure(
-        processors=[*shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        # A record below the level stops at the first processor, before any other work.
+        processors=[structlog.stdlib.filter_by_level, *shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=False,
@@ -89,7 +105,7 @@ def configure_logging(settings: Settings) -> None:
     setattr(handler, _HANDLER_TAG, True)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=shared,
+            foreign_pre_chain=foreign,
             processors=[
                 structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                 *final,

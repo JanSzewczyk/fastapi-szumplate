@@ -16,6 +16,8 @@ def main() -> None:
         host=settings.host,
         port=settings.port,
         reload=settings.reload,
+        timeout_graceful_shutdown=settings.graceful_shutdown_seconds,
+        server_header=False,  # do not announce the server software
         log_config=None,  # our handler is already installed; uvicorn must not replace it
         access_log=False,  # RequestContextMiddleware writes the access line
     )

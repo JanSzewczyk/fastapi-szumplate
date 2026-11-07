@@ -20,7 +20,8 @@ METADATA: Final[dict[str, Any]] = {
     "description": DESCRIPTION,
     "contact": {"name": "Szum-Tech", "url": "https://github.com/JanSzewczyk/fastapi-szumplate"},
     "license_info": {"name": "MIT", "identifier": "MIT"},
-    "servers": [{"url": "http://127.0.0.1:8000", "description": "Local development"}],
+    # Relative, so "Try it out" calls the host that serves the docs, wherever it runs.
+    "servers": [{"url": "/", "description": "The host that serves this document"}],
 }
 
 HEALTH_TAG: Final = {

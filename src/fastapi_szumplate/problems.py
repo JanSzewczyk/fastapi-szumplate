@@ -9,6 +9,7 @@ from typing import Any, Final, cast
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.utils import is_body_allowed_for_status_code
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse, Response
@@ -195,12 +196,27 @@ def _is_unreadable_json_value(exc: StarletteHTTPException) -> bool:
     )
 
 
+def _status_title(status: int) -> str:
+    """Return the reason phrase of a status, or a generic title for a code `http` does not know."""
+    try:
+        return HTTPStatus(status).phrase
+    except ValueError:
+        return "Error"
+
+
 async def _http_exception_handler(request: Request, exc: Exception) -> Response:
+    """Answer an `HTTPException` with a problem.
+
+    A status that forbids content (1xx, 204, 205, 304) gets no body. A `detail` that is not text is
+    left out: data a client needs belongs in a `ProblemType`, not in a stringified structure.
+    """
     http_exc = cast("StarletteHTTPException", exc)
     if _is_unreadable_json_value(http_exc):
         issue = ValidationIssue(loc=["body"], msg="JSON contains an integer with too many digits", type="json_invalid")
         return _validation_problem(request, [issue])
     headers = dict(http_exc.headers or {})
+    if not is_body_allowed_for_status_code(http_exc.status_code):
+        return Response(status_code=http_exc.status_code, headers=headers)
     if http_exc.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
         allowed = _allowed_methods(request)
         if allowed:
@@ -208,8 +224,8 @@ async def _http_exception_handler(request: Request, exc: Exception) -> Response:
     return problem(
         request,
         status=http_exc.status_code,
-        title=HTTPStatus(http_exc.status_code).phrase,
-        detail=str(http_exc.detail),
+        title=_status_title(http_exc.status_code),
+        detail=http_exc.detail if isinstance(http_exc.detail, str) else None,
         headers=headers,
     )
 
