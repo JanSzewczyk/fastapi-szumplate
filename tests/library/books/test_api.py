@@ -1,4 +1,5 @@
 import re
+import sys
 from typing import Any
 from uuid import UUID
 
@@ -6,7 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
+from pydantic import TypeAdapter, ValidationError
 
+from fastapi_szumplate.library.books.schemas import NON_BLANK, Title
 from fastapi_szumplate.main import create_app
 from tests.conftest import make_settings
 from tests.library.factories import book_payload, isbn_for
@@ -434,6 +437,58 @@ def test_an_invalid_update_is_a_422_and_changes_nothing(
 
     assert response.status_code == 422
     assert api.get(f"/v1/books/{book['id']}").json() == book
+
+
+BLANK_CHARACTERS = [
+    *"\t\n\x0b\x0c\r \x85\xa0\u1680\u2028\u2029\u202f\u205f\u3000",
+    *(chr(code) for code in range(0x2000, 0x200B)),
+]
+LOOKS_BLANK_BUT_IS_NOT = ["\x1c", "\x1f", "\u180e", "\u200b", "\ufeff"]
+
+
+@pytest.mark.parametrize("field", ["title", "author"])
+@pytest.mark.parametrize("character", BLANK_CHARACTERS, ids=lambda c: f"U+{ord(c):04X}")
+def test_every_unicode_whitespace_character_alone_is_a_blank_title_or_author(
+    api: TestClient, field: str, character: str
+) -> None:
+    response = api.post("/v1/books", json=book_payload(**{field: character * 3}))
+
+    assert response.status_code == 422
+    assert [i["loc"][:2] for i in response.json()["errors"]] == [["body", field]]
+
+
+@pytest.mark.parametrize("character", LOOKS_BLANK_BUT_IS_NOT, ids=lambda c: f"U+{ord(c):04X}")
+def test_a_character_that_is_not_unicode_whitespace_is_not_blank(
+    api: TestClient, character: str
+) -> None:
+    response = api.post("/v1/books", json=book_payload(title=character, author=character))
+
+    assert response.status_code == 201
+
+
+def test_the_published_pattern_and_the_validator_agree_on_every_character() -> None:
+    """The schema must not call a title valid that the API rejects, or the reverse."""
+    title = TypeAdapter(Title)
+    # A lone surrogate is not text: pydantic refuses it as `string_unicode` before any rule runs.
+    surrogates = range(0xD800, 0xE000)
+    probed = [
+        code
+        for code in [*range(0x10000), *range(0x10000, sys.maxunicode + 1, 97)]
+        if code not in surrogates
+    ]
+
+    disagreements = []
+    for code in probed:
+        character = chr(code)
+        try:
+            title.validate_python(character)
+            accepted = True
+        except ValidationError:
+            accepted = False
+        if accepted != (re.search(NON_BLANK, character) is not None):
+            disagreements.append(f"U+{code:04X}")
+
+    assert disagreements == []
 
 
 def test_surrounding_whitespace_is_dropped_from_a_title_and_an_author(api: TestClient) -> None:
