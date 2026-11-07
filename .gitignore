@@ -14,3 +14,5 @@ htmlcov/
 !.env.example
 *.pyc
 .DS_Store
+.openapi-base.json
+.schemathesis/
