@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from fastapi_szumplate.main import create_app
@@ -263,6 +263,35 @@ def test_a_value_outside_the_documented_limits_is_a_422_naming_the_field(
     assert response.headers["content-type"] == PROBLEM
     assert [issue["loc"][:2] for issue in response.json()["errors"]] == [["body", field]]
     assert api.get("/v1/books").json()["total"] == 0
+
+
+@pytest.mark.parametrize(
+    "isbn",
+    [
+        ARABIC_INDIC_ISBN,
+        "\uff19\uff17\uff18\uff10\uff11\uff13\uff12\uff13\uff15\uff10\uff18\uff18\uff14",
+    ],
+    ids=["arabic-indic-digits", "fullwidth-digits"],
+)
+def test_defect_2_an_isbn_of_non_ascii_digits_is_a_422(api: TestClient, isbn: str) -> None:
+    """Defect 2: the spec pattern `^\\d{13}$` means ASCII digits in JSON Schema (ECMA-262)."""
+    response = api.post("/v1/books", json=book_payload(isbn=isbn))
+
+    assert response.status_code == 422
+
+
+@given(isbn=st.text(alphabet=st.characters(categories=["Nd"]), min_size=13, max_size=13))
+@example(isbn=ARABIC_INDIC_ISBN)
+@example(isbn="9780132350884")
+@settings(max_examples=60, deadline=None)
+def test_defect_2_only_ascii_digits_make_an_isbn(isbn: str) -> None:
+    """Defect 2, as a property: accepted exactly when the string is thirteen ASCII digits."""
+    client = TestClient(create_app(make_settings()))
+
+    response = client.post("/v1/books", json=book_payload(isbn=isbn))
+
+    expected = 201 if re.fullmatch(r"[0-9]{13}", isbn) else 422
+    assert response.status_code == expected
 
 
 @given(isbn=st.text(alphabet="0123456789-X \n", max_size=15))

@@ -30,7 +30,7 @@
             "examples": [
               "9780132350884"
             ],
-            "pattern": "^\\d{13}$",
+            "pattern": "^[0-9]{13}$",
             "title": "Isbn",
             "type": "string"
           },
@@ -137,7 +137,7 @@
             "examples": [
               "9780132350884"
             ],
-            "pattern": "^\\d{13}$",
+            "pattern": "^[0-9]{13}$",
             "title": "Isbn",
             "type": "string"
           },
