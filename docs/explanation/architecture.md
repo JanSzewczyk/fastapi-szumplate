@@ -54,6 +54,15 @@ the app never has module-level state.
 The example's repositories are built in `include_library`.
 <!-- end:example -->
 
+## Logging is configured twice, on purpose
+
+`configure_logging(settings)` runs in `__main__.main()` and again inside every `create_app()`. It
+is idempotent: it removes only the handler it installed before it installs a new one, so the
+second call replaces the first instead of doubling every line. `main()` configures logging before
+it hands control to uvicorn, which then starts with `log_config=None`. `create_app()` configures it
+again because the app can be built without `main()`: by `uvicorn <package>.main:create_app
+--factory`, and by every test.
+
 ## Why handlers are sync `def`
 
 Routes run in Starlette's threadpool. The template does no async I/O, and plain `def` makes
