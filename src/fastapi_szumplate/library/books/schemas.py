@@ -17,16 +17,19 @@ Isbn = Annotated[
         examples=["9780132350884"],
     ),
 ]
-# Surrounding whitespace is dropped before the checks, so " " is not a title. The pattern states
-# "at least one non-blank character" in the spec too: min_length alone would publish " " as valid.
+# One character that is not whitespace. Pydantic strips surrounding whitespace with Rust's
+# `trim()`, i.e. Unicode White_Space, so this class spells out exactly that set: `\s` is not the
+# same set in Python, ECMAScript and Rust (U+0085 is `\s` in Python only, U+FEFF in ECMAScript
+# only), and a client that reads the schema must agree with the server on what "blank" means.
+NON_BLANK = r"[^\x09-\x0d \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
 Title = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"\S"),
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=NON_BLANK),
     Field(description="Title of the book.", examples=["Clean Code"]),
 ]
 Author = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"\S"),
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=NON_BLANK),
     Field(description="Author of the book.", examples=["Robert C. Martin"]),
 ]
 
