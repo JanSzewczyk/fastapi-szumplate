@@ -1288,8 +1288,8 @@
   },
   "servers": [
     {
-      "description": "Local development",
-      "url": "http://127.0.0.1:8000"
+      "description": "The host that serves this document",
+      "url": "/"
     }
   ],
   "tags": [

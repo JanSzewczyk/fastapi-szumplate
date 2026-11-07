@@ -145,6 +145,7 @@ All settings come from the environment or `.env` (see `.env.example`):
 | `DOCS_ENABLED` | `false` | Serve `/docs`, `/redoc`, `/openapi.json` |
 | `CORS_ORIGINS` | `[]` | JSON list of allowed origins; empty turns CORS off |
 | `HOST`, `PORT`, `RELOAD` | `127.0.0.1`, `8000`, `false` | Server binding |
+| `GRACEFUL_SHUTDOWN_SECONDS` | `20` | Time open requests get after SIGTERM; keep it below the orchestrator's grace period |
 | `DEFAULT_PAGE_SIZE` | `20` | Page size when `limit` is omitted |
 | `LOANS_MAX_ACTIVE_PER_MEMBER`, `LOAN_DAYS` | `3`, `14` | Example domain only | <!-- only:example -->
 

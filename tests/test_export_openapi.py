@@ -33,3 +33,11 @@ def test_check_fails_for_a_stale_or_missing_file(tmp_path: Path, capsys: pytest.
 
 def test_the_committed_document_is_current() -> None:
     assert export_openapi.main(["--check"]) == 0
+
+
+def test_the_document_ignores_environment_variables(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_NAME", "orders")
+    monkeypatch.setenv("DOCS_ENABLED", "true")
+
+    assert json.loads(export_openapi.render())["info"]["title"] == "fastapi-szumplate"
+    assert export_openapi.main(["--check"]) == 0

@@ -129,12 +129,14 @@ def remove_example(root: Path, package: str) -> None:
     env_example.write_text("".join(kept), encoding="utf-8")
 
     pyproject = root / "pyproject.toml"
-    blocks = re.split(
-        r"(?=^\[\[tool\.importlinter\.contracts\]\]$)",
-        pyproject.read_text("utf-8"),
-        flags=re.MULTILINE,
-    )
-    pyproject.write_text("".join(b for b in blocks if ".library" not in b), encoding="utf-8")
+    # One block per top-level table, so a table after the contracts is never taken for part of one.
+    blocks = re.split(r"(?=^\[)", pyproject.read_text("utf-8"), flags=re.MULTILINE)
+    pyproject.write_text("".join(b for b in blocks if not _is_example_contract(b)), encoding="utf-8")
+
+
+def _is_example_contract(block: str) -> bool:
+    """Tell whether a `pyproject.toml` block is an import-linter contract about the example."""
+    return block.startswith("[[tool.importlinter.contracts]]") and ".library" in block
 
 
 def apply_markers(text: str, keep: frozenset[str]) -> str:

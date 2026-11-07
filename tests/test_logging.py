@@ -1,6 +1,6 @@
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -10,6 +10,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
+from starlette.datastructures import Headers
 
 from fastapi_szumplate import __main__ as entry_point
 from fastapi_szumplate.logging_config import _HANDLER_TAG, configure_logging
@@ -63,6 +64,20 @@ def test_sensitive_keys_are_masked_also_when_nested(capsys: pytest.CaptureFixtur
     assert line["headers"] == {"Authorization": "***", "accept": "*/*"}
 
 
+def test_read_only_mappings_and_mappings_inside_sequences_are_masked(capsys: pytest.CaptureFixture[str]) -> None:
+    configure_logging(make_settings(log_format="json"))
+
+    structlog.get_logger("probe").info(
+        "inbound",
+        headers=Headers({"authorization": "Bearer abc", "accept": "*/*"}),
+        attempts=[{"token": "abc", "status": 401}],
+    )
+
+    [line] = lines(capsys)
+    assert line["headers"] == {"authorization": "***", "accept": "*/*"}
+    assert line["attempts"] == [{"token": "***", "status": 401}]
+
+
 def test_configure_logging_is_idempotent() -> None:
     settings = make_settings(log_format="json")
 
@@ -82,6 +97,48 @@ def test_stdlib_records_share_the_pipeline(capsys: pytest.CaptureFixture[str]) -
     assert line["event"] == "worker 3 restarted"
     assert line["logger"] == "uvicorn.error"
     assert line["level"] == "warning"
+
+
+def test_stdlib_records_keep_their_extras_masked_and_without_uvicorns_duplicate(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging(make_settings(log_format="json"))
+
+    logging.getLogger("some.dependency").info(
+        "connected", extra={"pool_size": 5, "api_token": "abc", "color_message": "\x1b[1mconnected\x1b[0m"}
+    )
+
+    [line] = lines(capsys)
+    assert line["pool_size"] == 5
+    assert line["api_token"] == "***"
+    assert "color_message" not in line
+
+
+class _CountingMapping(Mapping[str, str]):
+    """A mapping that counts how often a processor walks it."""
+
+    def __init__(self) -> None:
+        self.walks = 0
+
+    def __getitem__(self, key: str) -> str:
+        raise KeyError(key)
+
+    def __iter__(self) -> Iterator[str]:
+        self.walks += 1
+        return iter(())
+
+    def __len__(self) -> int:
+        return 0
+
+
+def test_a_record_below_the_level_is_dropped_before_the_processors_run() -> None:
+    configure_logging(make_settings(log_format="json", log_level="WARNING"))
+    payload = _CountingMapping()
+
+    structlog.get_logger("probe").info("too_quiet", payload=payload)
+    structlog.get_logger("probe").warning("loud_enough", payload=payload)
+
+    assert payload.walks == 1
 
 
 def test_log_level_filters_records(capsys: pytest.CaptureFixture[str]) -> None:
@@ -273,3 +330,5 @@ def test_entry_point_starts_uvicorn_with_our_logging(monkeypatch: pytest.MonkeyP
     assert kwargs["port"] == 9100
     assert kwargs["log_config"] is None
     assert kwargs["access_log"] is False
+    assert kwargs["server_header"] is False
+    assert kwargs["timeout_graceful_shutdown"] == 20
