@@ -17,6 +17,8 @@ def _scalar_query_parameters(request: Request) -> list[str]:
     """Name the query parameters of the matched operation that take one value.
 
     The names come from the generated OpenAPI document, so the rule is the one the spec states.
+    A route with `include_in_schema=False` is not in that document and keeps Starlette's
+    "last value wins" behaviour.
     """
     path = getattr(request.scope.get("route"), "path_format", None)
     app = cast("FastAPI", request.app)
