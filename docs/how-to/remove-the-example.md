@@ -4,6 +4,7 @@ The example (books and loans) lives in one package and one test folder, and `mai
 with one line. Nothing outside `library/` imports it except `main.py`, and an import contract
 enforces that (`make imports`).
 
+<!-- begin:template -->
 ## The quick way
 
 ```bash
@@ -11,6 +12,7 @@ python scripts/init_project.py <your-name> --without-example
 uv sync && make openapi && make check
 ```
 
+<!-- end:template -->
 ## By hand
 
 Replace `fastapi_szumplate` with your package name.
@@ -37,7 +39,9 @@ tooling, pagination and the `types.py` helpers, each with its own tests.
 `factory-boy` and `hypothesis` stay in the `test` group; remove them with
 `uv remove --group test factory-boy hypothesis` if your tests do not use them.
 
+<!-- begin:template -->
 ## Check it
 
-`template-smoke` in `.github/workflows/ci.yml` does exactly this on a copy of the template and
-fails if `make check` is not green afterwards.
+`template-smoke` in `.github/workflows/ci.yml` (locally `make smoke-template`) does exactly this
+on a copy of the template and fails if `make check` is not green afterwards.
+<!-- end:template -->

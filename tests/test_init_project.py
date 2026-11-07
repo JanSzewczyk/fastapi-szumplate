@@ -1,3 +1,4 @@
+import re
 import shutil
 import tomllib
 from pathlib import Path
@@ -85,6 +86,18 @@ def test_a_removed_block_leaves_no_run_of_blank_lines_in_the_docs(project: Path)
     for path in project.rglob("*.md"):
         if ".venv" not in path.parts:
             assert "\n\n\n" not in path.read_text(encoding="utf-8"), path
+
+
+@pytest.mark.parametrize("flags", [[], ["--without-example"]], ids=["rename", "bare"])
+def test_the_project_does_not_mention_the_template_tools_it_no_longer_has(
+    project: Path, flags: list[str]
+) -> None:
+    init_project.main(["orders-api", *flags, "--root", str(project)])
+
+    tools = re.compile(r"init_project|smoke[_-]template|template-smoke")
+    for path in init_project.text_files(project):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            assert tools.search(line) is None, f"{path.relative_to(project)}:{number}: {line}"
 
 
 def test_the_reference_finder_reports_the_line_that_names_the_example(project: Path) -> None:

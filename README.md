@@ -152,9 +152,11 @@ protect, and publish the security scheme in the OpenAPI document.
 <!-- begin:example -->
 ## Removing the example
 
-Run `python scripts/init_project.py <name> --without-example`, or follow
-[docs/how-to/remove-the-example.md](docs/how-to/remove-the-example.md) by hand. CI proves on every
-change that a copy without the example still passes `make check`.
+Follow [docs/how-to/remove-the-example.md](docs/how-to/remove-the-example.md): it lists the steps
+and what stays.
+`python scripts/init_project.py <name> --without-example` does them for you, and CI proves on <!-- only:template -->
+every change (job `template-smoke`, locally `make smoke-template`) that the result passes <!-- only:template -->
+`make check`. <!-- only:template -->
 <!-- end:example -->
 
 ## Docker
