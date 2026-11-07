@@ -189,6 +189,23 @@ def test_json_with_an_integer_beyond_the_parser_limit_is_a_422_but_invalid_utf8_
     assert not_text.status_code == 400
 
 
+@pytest.mark.parametrize(
+    "value",
+    ["abc", "9" * 5000],
+    ids=["not-a-number", "beyond-the-digit-limit"],
+)
+def test_a_400_the_application_raises_from_a_value_error_stays_a_400(
+    probe: TestClient, value: str
+) -> None:
+    """`int()` of a long string raises the same `ValueError` the JSON parser does."""
+    response = probe.get("/probe/convert", params={"value": value})
+
+    body = body_of(response)
+    assert response.status_code == 400
+    assert body["detail"] == "value must be an integer"
+    assert "errors" not in body
+
+
 def test_a_failure_in_the_outermost_middleware_is_still_a_500_problem() -> None:
     app = create_app(make_settings())
 

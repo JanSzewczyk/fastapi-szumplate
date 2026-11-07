@@ -17,6 +17,7 @@ PROBLEM_MEDIA_TYPE: Final = "application/problem+json"
 PROBLEM_TYPE_PREFIX: Final = "urn:problem:fastapi-szumplate:"
 _HTTP_METHODS: Final = frozenset({"get", "put", "post", "delete", "patch", "head", "options"})
 _UNHANDLED_DETAIL: Final = "The server failed to process the request."
+_FASTAPI_BODY_PARSE_DETAIL: Final = "There was an error parsing the body"  # fastapi/routing.py
 
 log = structlog.get_logger(__name__)
 
@@ -184,15 +185,18 @@ def _validation_problem(request: Request, issues: list[ValidationIssue]) -> JSON
 
 
 def _is_unreadable_json_value(exc: StarletteHTTPException) -> bool:
-    """Tell FastAPI's 400 for a JSON number it cannot parse from its 400 for undecodable bytes.
+    """Tell FastAPI's 400 for a JSON number it cannot parse from any other 400.
 
-    FastAPI answers 400 for any non-`JSONDecodeError` raised while it parses a body. For valid
-    JSON that is a plain `ValueError` from `json` (an integer of more than 4300 digits); invalid
-    UTF-8 is a `UnicodeDecodeError`, which stays a 400 because the bytes are not text.
+    FastAPI answers 400 with its own detail for any non-`JSONDecodeError` raised while it parses
+    a body. For valid JSON that is a plain `ValueError` from `json` (an integer of more than 4300
+    digits); invalid UTF-8 is a `UnicodeDecodeError`, which stays a 400 because the bytes are not
+    text. A 400 that application code raises keeps its own detail, even when it was raised from a
+    `ValueError`, so the detail FastAPI uses is part of the test.
     """
     cause = exc.__cause__
     return (
         exc.status_code == HTTPStatus.BAD_REQUEST
+        and exc.detail == _FASTAPI_BODY_PARSE_DETAIL
         and isinstance(cause, ValueError)
         and not isinstance(cause, UnicodeDecodeError)
     )
