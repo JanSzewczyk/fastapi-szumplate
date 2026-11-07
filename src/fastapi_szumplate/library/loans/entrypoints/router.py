@@ -44,6 +44,18 @@ Service = Annotated[LoanService, Depends(get_loan_service)]
                     "schema": {"type": "string"},
                 }
             },
+            "links": {
+                "GetLoan": {
+                    "operationId": "get_loan",
+                    "parameters": {"loan_id": "$response.body#/id"},
+                    "description": "Fetch the loan that was just created.",
+                },
+                "ReturnLoan": {
+                    "operationId": "return_loan",
+                    "parameters": {"loan_id": "$response.body#/id"},
+                    "description": "Return the book of the new loan.",
+                },
+            },
         },
         400: malformed_body_response(),
         404: problem_response(BOOK_NOT_FOUND),

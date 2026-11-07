@@ -38,6 +38,23 @@ Service = Annotated[BookService, Depends(get_book_service)]
                     "schema": {"type": "string"},
                 }
             },
+            "links": {
+                "GetBook": {
+                    "operationId": "get_book",
+                    "parameters": {"book_id": "$response.body#/id"},
+                    "description": "Fetch the book that was just created.",
+                },
+                "UpdateBook": {
+                    "operationId": "update_book",
+                    "parameters": {"book_id": "$response.body#/id"},
+                    "description": "Change the title or author of the new book.",
+                },
+                "LendBook": {
+                    "operationId": "create_loan",
+                    "requestBody": {"book_id": "$response.body#/id", "member_id": "member-1"},
+                    "description": "Lend the new book to a member.",
+                },
+            },
         },
         400: malformed_body_response(),
         409: problem_response(ISBN_ALREADY_EXISTS),
