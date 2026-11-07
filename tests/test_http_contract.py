@@ -481,6 +481,24 @@ class TestCors:
 
         assert response.status_code == 400
 
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            {"Access-Control-Request-Method": "PATCH"},
+            {"Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"},
+            {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "x-evil"},
+        ],
+        ids=["method", "origin", "header"],
+    )
+    def test_defect_4_a_refused_preflight_is_a_problem_not_plain_text(
+        self, cors: TestClient, headers: dict[str, str]
+    ) -> None:
+        """Defect 4 (stricter reading): `info.description` says every error is Problem Details."""
+        response = cors.options("/v1/books", headers={"Origin": self.ORIGIN, **headers})
+
+        assert response.headers["content-type"] == PROBLEM
+        assert response.json()["status"] == 400
+
     def test_without_cors_a_preflight_is_a_405_problem(self, client: TestClient) -> None:
         response = client.options(
             "/v1/books",

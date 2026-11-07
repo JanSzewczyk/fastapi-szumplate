@@ -23,10 +23,10 @@ Errors the framework raises use `type` `about:blank` and the HTTP status phrase 
 
 | Status | When |
 | --- | --- |
-| 400 | The body bytes are not decodable text (for example invalid UTF-8). |
+| 400 | The body bytes are not decodable text (for example invalid UTF-8), or a CORS preflight was refused (`Disallowed CORS origin`, `method` or `headers`). |
 | 404 | Unknown path. A trailing slash is not redirected; `/v1/books/` is a 404. |
 | 405 | Wrong method; the `Allow` header lists every method of the path. |
 | 500 | Unhandled error. Fixed text, no exception details. |
 
-Every response carries an `X-Request-ID` header, a 500 included. The same value is in the body as
-`request_id` and in every log line of the request.
+Every response carries an `X-Request-ID` header, a 500 and a refused CORS preflight included. The
+same value is in the body as `request_id` and in every log line of the request.

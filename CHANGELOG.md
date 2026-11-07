@@ -35,6 +35,7 @@ All notable changes to this template are recorded here. The format follows
   once, on the `request_completed` line.
 - The ISBN pattern is `^[0-9]{13}$`: non-ASCII digits (Arabic-Indic, fullwidth) were accepted
   because the regex engine reads `\d` as any Unicode digit, so one ISBN could be stored twice.
+- A refused CORS preflight is a Problem Details 400, not plain text.
 
 ### Changed
 

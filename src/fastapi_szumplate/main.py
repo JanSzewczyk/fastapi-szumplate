@@ -1,7 +1,6 @@
 """Application factory."""
 
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
 
 from fastapi_szumplate.config import Settings
 from fastapi_szumplate.health.readiness import install_readiness
@@ -10,6 +9,7 @@ from fastapi_szumplate.library import include_library
 from fastapi_szumplate.logging_config import configure_logging
 from fastapi_szumplate.middleware import (
     REQUEST_ID_HEADER,
+    ProblemCORSMiddleware,
     RequestContextMiddleware,
     UnhandledErrorMiddleware,
 )
@@ -49,7 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(UnhandledErrorMiddleware)
     if settings.cors_origins:
         app.add_middleware(
-            CORSMiddleware,
+            ProblemCORSMiddleware,
             allow_origins=settings.cors_origins,
             allow_methods=["GET", "POST", "PUT", "DELETE"],
             allow_headers=[REQUEST_ID_HEADER, "Content-Type"],
