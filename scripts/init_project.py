@@ -9,9 +9,19 @@ It renames the distribution (`fastapi-szumplate` -> `orders-api`), the package
 (`fastapi_szumplate` -> `orders_api`) and its directory, and rewrites every text file. With
 `--without-example` it also deletes the example domain (`library/`, `tests/library/`), its
 `include_library` hook, its settings and its import-linter contracts. It then deletes itself,
-its test, the `template-smoke` CI job and the "Use it" section of the README: they only make sense
-in the template. Afterwards run `make openapi && make check`: the OpenAPI document carries the
-service name.
+its test and the smoke script, and strips what only makes sense in the template. Afterwards run
+`make openapi && make check`: the OpenAPI document carries the service name.
+
+Text files mark what belongs to one audience, in a comment at the end of a line or on lines of
+their own (`<!-- ... -->` in Markdown, `# ...` elsewhere):
+
+    ... <!-- only:template -->   this line only in the template
+    <!-- begin:example -->       these lines only while the example stays
+    ...
+    <!-- end:example -->
+
+The audiences are `template` (always removed here), `example` (kept unless `--without-example`)
+and `bare` (kept only with `--without-example`). The marker comments themselves are removed.
 """
 
 import argparse
@@ -40,6 +50,7 @@ TEXT_SUFFIXES = {
 TEXT_NAMES = {"Makefile", "Dockerfile", ".dockerignore", ".gitignore", ".pre-commit-config.yaml"}
 SKIP_DIRS = {".git", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 THIS_SCRIPT = Path(__file__).resolve()
+MARKER = re.compile(r"(?:<!--\s*|#\s*)(?P<kind>only|begin|end):(?P<audience>[a-z]+)(?:\s*-->)?\s*$")
 
 
 def text_files(root: Path) -> list[Path]:
@@ -111,25 +122,41 @@ def remove_example(root: Path, package: str) -> None:
     pyproject.write_text("".join(b for b in blocks if ".library" not in b), encoding="utf-8")
 
 
+def apply_markers(text: str, keep: frozenset[str]) -> str:
+    """Keep the lines marked for an audience in `keep` and drop the other marked lines."""
+    kept: list[str] = []
+    visible: list[bool] = []
+    for line in text.splitlines(keepends=True):
+        marker = MARKER.search(line.rstrip("\r\n"))
+        if marker is None:
+            if all(visible):
+                kept.append(line)
+        elif marker["kind"] == "begin":
+            visible.append(marker["audience"] in keep)
+        elif marker["kind"] == "end":
+            visible.pop()
+        elif all(visible) and marker["audience"] in keep:
+            kept.append(line[: marker.start()].rstrip() + "\n")
+    return "".join(kept)
+
+
+def apply_audience(root: Path, keep: frozenset[str]) -> None:
+    """Resolve the audience markers in every text file."""
+    for path in text_files(root):
+        text = path.read_text(encoding="utf-8")
+        updated = apply_markers(text, keep)
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+
+
 def drop_template_machinery(root: Path) -> None:
-    """Delete what only makes sense in the template: this script, its test, the smoke job."""
-    (root / "scripts" / "init_project.py").unlink(missing_ok=True)
-    (root / "tests" / "test_init_project.py").unlink(missing_ok=True)
-
-    ci = root / ".github" / "workflows" / "ci.yml"
-    if ci.exists():
-        text = ci.read_text(encoding="utf-8")
-        ci.write_text(
-            re.sub(r"\n  # Proves a copy.*?(?=\n  # Informational)", "", text, flags=re.DOTALL),
-            encoding="utf-8",
-        )
-
-    readme = root / "README.md"
-    if readme.exists():
-        text = readme.read_text(encoding="utf-8")
-        readme.write_text(
-            re.sub(r"## Use it\n.*?(?=## Run it)", "", text, flags=re.DOTALL), encoding="utf-8"
-        )
+    """Delete what only makes sense in the template: this script, its test, the smoke script."""
+    for name in (
+        "scripts/init_project.py",
+        "scripts/smoke_template.sh",
+        "tests/test_init_project.py",
+    ):
+        (root / name).unlink(missing_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -163,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.without_example:
         remove_example(root, args.name.replace("-", "_"))
     drop_template_machinery(root)
+    apply_audience(root, frozenset({"bare"} if args.without_example else {"example"}))
     print(f"Renamed to {args.name}. Next: review the contact URL in openapi.py, then")
     print("  uv lock --check && make openapi && make check")
     return 0

@@ -4,6 +4,7 @@ A copy-ready FastAPI service template by Szum-Tech: typed settings, structured l
 format (Problem Details), a generated and checked OpenAPI contract, an example domain you can
 delete, Docker, pre-commit and CI. Python 3.15, uv, Ruff, mypy (strict), pytest.
 
+<!-- begin:template -->
 ## Use it
 
 Click **Use this template** on GitHub, clone your copy, then rename it and (optionally) drop the
@@ -18,6 +19,7 @@ uv sync && make openapi && make check
 The script renames the distribution, the package, its directory and every mention of the old
 name. Review the contact URL in `src/<package>/openapi.py` afterwards.
 
+<!-- end:template -->
 ## Run it
 
 ```bash
@@ -55,6 +57,7 @@ access log. If you must use the CLI, pass `--factory` (`uvicorn fastapi_szumplat
 | `make api-check` | `openapi-check`, `api-lint`, `api-breaking` and `schemathesis` |
 | `make audit` | pip-audit on the locked dependencies |
 | `make docker-build` / `make docker-run` | Build and run the image (needs Docker and a `.env`) |
+| `make smoke-template` | Build projects from the template in a temp dir, with and without the example, and run their gates (slow) | <!-- only:template -->
 | `make clean` | Remove caches and generated files |
 
 Parallel-guard tests carry the `concurrency` marker: `uv run pytest -m concurrency`.
