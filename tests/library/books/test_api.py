@@ -333,6 +333,17 @@ def test_a_body_that_is_not_a_book_object_is_a_422(
     assert response.json()["errors"][0]["type"] == error_type
 
 
+def test_defect_3_valid_json_with_an_absurdly_long_integer_is_a_422_not_a_400(
+    api: TestClient,
+) -> None:
+    """Defect 3 (stricter reading): the 400 is documented for bytes that are not text."""
+    body = b'{"isbn": "9780132350884", "title": "T", "author": "A", "copies": ' + b"9" * 5000 + b"}"
+
+    response = api.post("/v1/books", content=body, headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+
+
 def test_the_location_header_points_at_the_new_book(api: TestClient) -> None:
     created = api.post("/v1/books", json=book_payload())
 
