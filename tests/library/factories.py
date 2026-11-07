@@ -1,6 +1,7 @@
 """Factories for the example domain's test data. Set every value a test asserts on explicitly."""
 
 import uuid
+from datetime import date
 from typing import Any
 
 from factory.base import Factory
@@ -8,6 +9,7 @@ from factory.declarations import Sequence
 from factory.faker import Faker
 
 from fastapi_szumplate.library.books.models import Book
+from fastapi_szumplate.library.loans.domain.model import Loan
 
 
 def isbn_for(number: int) -> str:
@@ -38,3 +40,17 @@ def book_payload(**overrides: Any) -> dict[str, Any]:
         "copies": book.copies,
     }
     return {**body, **overrides}
+
+
+class LoanFactory(Factory[Loan]):
+    """Domain `Loan`: borrowed on a fixed day and still out. Override what a test asserts on."""
+
+    class Meta:
+        model = Loan
+
+    id = Sequence(lambda _: uuid.uuid7())  # type: ignore[no-untyped-call]  # factory_boy declarations are untyped
+    book_id = Sequence(lambda _: uuid.uuid7())  # type: ignore[no-untyped-call]  # factory_boy declarations are untyped
+    member_id = Sequence(lambda n: f"member-{n}")  # type: ignore[no-untyped-call]  # factory_boy declarations are untyped
+    borrowed_on = date(2026, 1, 6)
+    due_on = date(2026, 1, 20)
+    returned_on = None

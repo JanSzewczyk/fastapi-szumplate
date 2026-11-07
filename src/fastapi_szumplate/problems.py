@@ -93,7 +93,7 @@ def problem_response(*types: ProblemType, description: str | None = None) -> dic
 def register_problem_types(app: FastAPI, *types: ProblemType) -> None:
     """Record the problem types an app can answer with, so tests can check they are documented."""
     existing: list[ProblemType] = getattr(app.state, "problem_types", [])
-    app.state.problem_types = [*existing, *types]
+    app.state.problem_types = [*existing, *(t for t in dict.fromkeys(types) if t not in existing)]
 
 
 def problem(
