@@ -3,7 +3,7 @@
 ## Domain first, layers inside
 
 Top-level packages are business areas; the layers (router, schemas, service, repository) sit
-inside each. A change to one area edits one folder. `health` is the one area the template ships.
+inside each. A change to one area edits one folder. `health` is the one area the core ships.
 
 <!-- begin:example -->
 The example adds `library/books` and `library/loans`: a change to "loans" edits one folder.
@@ -65,7 +65,7 @@ again because the app can be built without `main()`: by `uvicorn <package>.main:
 
 ## Why handlers are sync `def`
 
-Routes run in Starlette's threadpool. The template does no async I/O, and plain `def` makes
+Routes run in Starlette's threadpool. The service does no async I/O, and plain `def` makes
 parallel tests meaningful: concurrent requests really run at the same time. Switch a route to
 `async def` only when it awaits something, and then give each awaited call a timeout.
 

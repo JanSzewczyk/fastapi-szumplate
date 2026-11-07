@@ -1,6 +1,6 @@
 # fastapi-szumplate
 
-A copy-ready FastAPI service template by Szum-Tech: typed settings, structured logging, one error
+A FastAPI service by Szum-Tech: typed settings, structured logging, one error
 format (Problem Details), a generated and checked OpenAPI contract, Docker, pre-commit and CI.
 Python 3.15, uv, Ruff, mypy (strict), pytest.
 
@@ -149,7 +149,7 @@ All settings come from the environment or `.env` (see `.env.example`):
 | `DEFAULT_PAGE_SIZE` | `20` | Page size when `limit` is omitted |
 | `LOANS_MAX_ACTIVE_PER_MEMBER`, `LOAN_DAYS` | `3`, `14` | Example domain only | <!-- only:example -->
 
-Authentication is out of scope for the template. Put it in a dependency on the routers you want to
+Authentication is out of scope here. Put it in a dependency on the routers you want to
 protect, and publish the security scheme in the OpenAPI document.
 
 <!-- begin:example -->

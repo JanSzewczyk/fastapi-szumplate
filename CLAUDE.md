@@ -1,6 +1,6 @@
 # fastapi-szumplate
 
-FastAPI service template. Python 3.15, uv, Ruff, mypy (strict), pytest.
+FastAPI service. Python 3.15, uv, Ruff, mypy (strict), pytest.
 
 ## Commands
 
@@ -14,7 +14,7 @@ FastAPI service template. Python 3.15, uv, Ruff, mypy (strict), pytest.
 
 ## Layout
 
-- Template core: `config.py`, `logging_config.py`, `middleware.py`, `problems.py`, `openapi.py`,
+- Service core: `config.py`, `logging_config.py`, `middleware.py`, `problems.py`, `openapi.py`,
   `types.py`, `pagination.py`, `health/`.
 <!-- begin:example -->
 - Example domain: `src/fastapi_szumplate/library/` and `tests/library/`, mounted by one

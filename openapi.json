@@ -569,7 +569,7 @@
       "name": "Szum-Tech",
       "url": "https://github.com/JanSzewczyk/fastapi-szumplate"
     },
-    "description": "Production-ready FastAPI service template.\n\nEvery error is returned as Problem Details (RFC 9457, `application/problem+json`). Branch on the\n`type` field, never on `detail`. Every response carries an `X-Request-ID` header; quote it when\nyou report a problem.\n",
+    "description": "Production-ready FastAPI service.\n\nEvery error is returned as Problem Details (RFC 9457, `application/problem+json`). Branch on the\n`type` field, never on `detail`. Every response carries an `X-Request-ID` header; quote it when\nyou report a problem.\n",
     "license": {
       "identifier": "MIT",
       "name": "MIT"

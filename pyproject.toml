@@ -1,7 +1,7 @@
 [project]
 name = "fastapi-szumplate"
 version = "0.1.0"
-description = "Production-ready FastAPI template with uv, Ruff, mypy strict and pytest"
+description = "Production-ready FastAPI service with uv, Ruff, mypy strict and pytest"
 readme = "README.md"
 requires-python = ">=3.15"
 dependencies = [
@@ -89,7 +89,7 @@ root_package = "fastapi_szumplate"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "The template core never imports the example domain"
+name = "The core never imports the example domain"
 type = "forbidden"
 source_modules = [
     "fastapi_szumplate.config",
@@ -105,7 +105,7 @@ source_modules = [
 forbidden_modules = ["fastapi_szumplate.library"]
 
 [[tool.importlinter.contracts]]
-name = "Nothing in the template imports the application factory"
+name = "Nothing in the core imports the application factory"
 type = "forbidden"
 source_modules = [
     "fastapi_szumplate.config",

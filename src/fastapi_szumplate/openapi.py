@@ -8,7 +8,7 @@ from fastapi_szumplate import __version__
 from fastapi_szumplate.problems import PROBLEM_MEDIA_TYPE
 
 DESCRIPTION: Final = """\
-Production-ready FastAPI service template.
+Production-ready FastAPI service.
 
 Every error is returned as Problem Details (RFC 9457, `application/problem+json`). Branch on the
 `type` field, never on `detail`. Every response carries an `X-Request-ID` header; quote it when
