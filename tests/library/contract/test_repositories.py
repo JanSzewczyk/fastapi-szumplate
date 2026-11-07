@@ -1,12 +1,15 @@
 """Repository contract: a new adapter (SQL, say) passes it by subclassing and providing `repo`."""
 
+from datetime import date
 from uuid import UUID
 
 import pytest
 
 from fastapi_szumplate.library.books.exceptions import BookNotFound, IsbnAlreadyExists
 from fastapi_szumplate.library.books.repository import BookRepository, InMemoryBookRepository
-from tests.library.factories import BookFactory, isbn_for
+from fastapi_szumplate.library.loans.adapters.memory_repository import InMemoryLoanRepository
+from fastapi_szumplate.library.loans.domain.ports import LoanRepository
+from tests.library.factories import BookFactory, LoanFactory, isbn_for
 
 
 class BookRepositoryContract:
@@ -72,3 +75,78 @@ class TestInMemoryBookRepository(BookRepositoryContract):
     @pytest.fixture
     def repo(self) -> BookRepository:
         return InMemoryBookRepository()
+
+
+class LoanRepositoryContract:
+    """Behaviour every `LoanRepository` adapter must have."""
+
+    @pytest.fixture
+    def repo(self) -> LoanRepository:
+        raise NotImplementedError
+
+    def test_added_loan_can_be_read_back(self, repo: LoanRepository) -> None:
+        loan = LoanFactory.build(member_id="member-1")
+
+        repo.add(loan)
+
+        assert repo.get(loan.id) == loan
+
+    def test_unknown_id_returns_none(self, repo: LoanRepository) -> None:
+        assert repo.get(UUID(int=7)) is None
+
+    def test_save_replaces_the_stored_loan(self, repo: LoanRepository) -> None:
+        loan = LoanFactory.build()
+        repo.add(loan)
+        returned = loan.give_back(date(2026, 1, 8))
+
+        repo.save(returned)
+
+        assert repo.get(loan.id) == returned
+
+    def test_active_loans_are_counted_per_book_and_per_member(self, repo: LoanRepository) -> None:
+        book = UUID(int=1)
+        repo.add(LoanFactory.build(book_id=book, member_id="a"))
+        repo.add(LoanFactory.build(book_id=book, member_id="b"))
+        repo.add(LoanFactory.build(book_id=book, member_id="a", returned_on=date(2026, 1, 8)))
+        repo.add(LoanFactory.build(book_id=UUID(int=2), member_id="a"))
+
+        assert repo.count_active_for_book(book) == 2
+        assert len(repo.active_for_member("a")) == 2
+        assert repo.active_for_member("nobody") == []
+
+    def test_list_filters_and_pages_in_insertion_order(self, repo: LoanRepository) -> None:
+        loans = [
+            LoanFactory.build(member_id="a"),
+            LoanFactory.build(member_id="b"),
+            LoanFactory.build(member_id="a", returned_on=date(2026, 1, 8)),
+        ]
+        for loan in loans:
+            repo.add(loan)
+
+        everything, total = repo.list_loans(member_id=None, active=None, limit=2, offset=0)
+        mine, mine_total = repo.list_loans(member_id="a", active=None, limit=10, offset=0)
+        out, out_total = repo.list_loans(member_id=None, active=True, limit=10, offset=0)
+        back, _ = repo.list_loans(member_id=None, active=False, limit=10, offset=0)
+
+        assert everything == loans[:2]
+        assert total == 3
+        assert mine == [loans[0], loans[2]]
+        assert mine_total == 2
+        assert out == loans[:2]
+        assert out_total == 2
+        assert back == [loans[2]]
+
+    def test_repository_methods_can_be_called_inside_a_transaction(
+        self, repo: LoanRepository
+    ) -> None:
+        loan = LoanFactory.build()
+
+        with repo.transaction():
+            repo.add(loan)
+            assert repo.count_active_for_book(loan.book_id) == 1
+
+
+class TestInMemoryLoanRepository(LoanRepositoryContract):
+    @pytest.fixture
+    def repo(self) -> LoanRepository:
+        return InMemoryLoanRepository()

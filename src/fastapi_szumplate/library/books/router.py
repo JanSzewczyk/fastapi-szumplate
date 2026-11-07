@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Response, status
 
 from fastapi_szumplate.library.books.dependencies import get_book_service
-from fastapi_szumplate.library.books.errors import BOOK_NOT_FOUND, ISBN_ALREADY_EXISTS
+from fastapi_szumplate.library.books.errors import ISBN_ALREADY_EXISTS
 from fastapi_szumplate.library.books.schemas import (
     BookCreate,
     BookPage,
@@ -14,7 +14,7 @@ from fastapi_szumplate.library.books.schemas import (
     BookUpdate,
 )
 from fastapi_szumplate.library.books.service import BookService
-from fastapi_szumplate.library.constants import API_PREFIX
+from fastapi_szumplate.library.constants import API_PREFIX, BOOK_NOT_FOUND
 from fastapi_szumplate.pagination import PageParams, get_page_params
 from fastapi_szumplate.problems import VALIDATION_ERROR, problem_response
 
