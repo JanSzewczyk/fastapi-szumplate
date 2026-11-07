@@ -30,6 +30,9 @@ All notable changes to this template are recorded here. The format follows
 
 - Logged tracebacks no longer include local variables: a frame's `scope` holds the request
   headers, `Authorization` included. The console format uses the plain traceback formatter.
+- A 500 now carries the `X-Request-ID` header and the CORS headers: the catch-all moved from
+  Starlette's outermost middleware into `UnhandledErrorMiddleware`, and the traceback is logged
+  once, on the `request_completed` line.
 
 ### Changed
 

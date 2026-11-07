@@ -204,8 +204,8 @@ async def _validation_exception_handler(request: Request, exc: Exception) -> Res
     )
 
 
-async def _unhandled_exception_handler(request: Request, _exc: Exception) -> Response:
-    # Starlette re-raises after this response, so the server logs the traceback once.
+def unhandled_problem(request: Request) -> JSONResponse:
+    """Build the generic 500 problem: fixed text, nothing from the exception."""
     return problem(
         request,
         status=500,
@@ -214,9 +214,19 @@ async def _unhandled_exception_handler(request: Request, _exc: Exception) -> Res
     )
 
 
+async def _backstop_exception_handler(request: Request, _exc: Exception) -> Response:
+    return unhandled_problem(request)
+
+
 def add_problem_handlers(app: FastAPI) -> None:
-    """Make every error the framework raises itself answer with Problem Details."""
+    """Make every error the framework raises itself answer with Problem Details.
+
+    An exception without a handler is answered by `UnhandledErrorMiddleware`, so that the answer
+    passes through the other middleware. The `Exception` handler below runs outside all of them:
+    it is the backstop for a failure in the middleware themselves, and its response has no
+    `X-Request-ID` header and no CORS headers. The server logs that traceback.
+    """
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
-    app.add_exception_handler(Exception, _unhandled_exception_handler)
+    app.add_exception_handler(Exception, _backstop_exception_handler)
     register_problem_types(app, VALIDATION_ERROR)
