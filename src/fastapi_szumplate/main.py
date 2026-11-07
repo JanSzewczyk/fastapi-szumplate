@@ -1,6 +1,6 @@
 """Application factory."""
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from fastapi_szumplate.config import Settings
 from fastapi_szumplate.health.readiness import install_readiness
@@ -15,6 +15,7 @@ from fastapi_szumplate.middleware import (
 )
 from fastapi_szumplate.openapi import HEALTH_TAG, METADATA, install_openapi
 from fastapi_szumplate.problems import add_problem_handlers
+from fastapi_szumplate.query import reject_repeated_query_parameters
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url="/redoc" if settings.docs_enabled else None,
         openapi_url="/openapi.json" if settings.docs_enabled else None,
         redirect_slashes=False,
+        dependencies=[Depends(reject_repeated_query_parameters)],
         openapi_tags=[HEALTH_TAG],
         **METADATA,
     )

@@ -477,6 +477,19 @@ def test_an_update_keeps_the_place_of_the_book_in_the_list_and_is_repeatable(
     assert listed["total"] == 3
 
 
+@pytest.mark.parametrize(
+    "query",
+    ["offset=1&offset=2", "offset=false&offset=0.0", "limit=5&limit=5", "offset=0&limit=5&limit=6"],
+)
+def test_a_paging_parameter_given_twice_is_a_422_not_the_last_value(
+    api: TestClient, query: str
+) -> None:
+    response = api.get(f"/v1/books?{query}")
+
+    assert response.status_code == 422
+    assert response.json()["errors"][0]["type"] == "repeated_parameter"
+
+
 @pytest.mark.parametrize("limit", [1, 100])
 def test_the_limits_of_the_page_size_are_accepted(api: TestClient, limit: int) -> None:
     create_book(api)

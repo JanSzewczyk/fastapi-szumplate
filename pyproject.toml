@@ -99,6 +99,7 @@ source_modules = [
     "fastapi_szumplate.openapi",
     "fastapi_szumplate.pagination",
     "fastapi_szumplate.problems",
+    "fastapi_szumplate.query",
     "fastapi_szumplate.types",
 ]
 forbidden_modules = ["fastapi_szumplate.library"]
@@ -114,6 +115,7 @@ source_modules = [
     "fastapi_szumplate.openapi",
     "fastapi_szumplate.pagination",
     "fastapi_szumplate.problems",
+    "fastapi_szumplate.query",
     "fastapi_szumplate.types",
 ]
 forbidden_modules = ["fastapi_szumplate.main"]
