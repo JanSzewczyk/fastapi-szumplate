@@ -735,6 +735,30 @@
                   "type": "string"
                 }
               }
+            },
+            "links": {
+              "GetBook": {
+                "description": "Fetch the book that was just created.",
+                "operationId": "get_book",
+                "parameters": {
+                  "book_id": "$response.body#/id"
+                }
+              },
+              "LendBook": {
+                "description": "Lend the new book to a member.",
+                "operationId": "create_loan",
+                "requestBody": {
+                  "book_id": "$response.body#/id",
+                  "member_id": "member-1"
+                }
+              },
+              "UpdateBook": {
+                "description": "Change the title or author of the new book.",
+                "operationId": "update_book",
+                "parameters": {
+                  "book_id": "$response.body#/id"
+                }
+              }
             }
           },
           "400": {
@@ -1045,6 +1069,22 @@
                 "description": "URL of the new loan.",
                 "schema": {
                   "type": "string"
+                }
+              }
+            },
+            "links": {
+              "GetLoan": {
+                "description": "Fetch the loan that was just created.",
+                "operationId": "get_loan",
+                "parameters": {
+                  "loan_id": "$response.body#/id"
+                }
+              },
+              "ReturnLoan": {
+                "description": "Return the book of the new loan.",
+                "operationId": "return_loan",
+                "parameters": {
+                  "loan_id": "$response.body#/id"
                 }
               }
             }

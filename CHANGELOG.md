@@ -21,6 +21,8 @@ All notable changes to this project are recorded here. The format follows
 - Example domain under `library/` (books and loans) with six rules, atomic guards and parallel
   tests; in-memory repositories behind ports with a shared contract suite.
 - import-linter contracts for module boundaries.
+- OpenAPI links from the create operations to the get, update, lend and return operations, and a
+  `schemathesis.toml`, so stateful Schemathesis reaches the operations that need an id.
 - Multi-stage Dockerfile, `compose.yaml`, pre-commit configuration and Dependabot.
 - CI jobs for the contract tooling, the image, a template smoke test and an informational
   free-threaded Python run.
