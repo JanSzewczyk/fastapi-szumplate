@@ -164,9 +164,7 @@ def test_unversioned_path_is_a_404(api: TestClient) -> None:
     assert api.get("/books").status_code == 404
 
 
-def test_access_log_uses_the_full_route_template(
-    api: TestClient, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_access_log_uses_the_full_route_template(api: TestClient, capsys: pytest.CaptureFixture[str]) -> None:
     api.get(f"/v1/books/{MISSING_ID}")
 
     assert '"route": "/v1/books/{book_id}"' in capsys.readouterr().out
@@ -181,9 +179,7 @@ def test_a_whole_number_written_with_a_fraction_is_an_integer(api: TestClient) -
 
 
 def test_a_body_that_is_not_text_is_a_400_problem(api: TestClient) -> None:
-    response = api.post(
-        "/v1/books", content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"}
-    )
+    response = api.post("/v1/books", content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"})
 
     assert response.status_code == 400
     assert response.headers["content-type"] == PROBLEM
@@ -216,9 +212,7 @@ ARABIC_INDIC_ISBN = "\u0669\u0667\u0668\u0660\u0661\u0663\u0662\u0663\u0665\u066
         "isbn-all-zeros",
     ],
 )
-def test_values_on_the_edge_of_the_limits_are_accepted(
-    api: TestClient, overrides: dict[str, Any]
-) -> None:
+def test_values_on_the_edge_of_the_limits_are_accepted(api: TestClient, overrides: dict[str, Any]) -> None:
     payload = book_payload(**overrides)
 
     response = api.post("/v1/books", json=payload)
@@ -329,9 +323,7 @@ def test_an_ascii_string_is_stored_only_when_it_is_thirteen_digits(isbn: str) ->
     ],
     ids=["empty", "null", "array", "string", "number", "bool", "truncated", "single-quotes", "{}"],
 )
-def test_a_body_that_is_not_a_book_object_is_a_422(
-    api: TestClient, content: bytes, error_type: str
-) -> None:
+def test_a_body_that_is_not_a_book_object_is_a_422(api: TestClient, content: bytes, error_type: str) -> None:
     response = api.post("/v1/books", content=content, headers={"Content-Type": "application/json"})
 
     assert response.status_code == 422
@@ -428,9 +420,7 @@ def test_an_update_cannot_change_the_isbn_or_the_capacity(api: TestClient, extra
         "number",
     ],
 )
-def test_an_invalid_update_is_a_422_and_changes_nothing(
-    api: TestClient, payload: dict[str, Any]
-) -> None:
+def test_an_invalid_update_is_a_422_and_changes_nothing(api: TestClient, payload: dict[str, Any]) -> None:
     book = create_book(api)
 
     response = api.put(f"/v1/books/{book['id']}", json=payload)
@@ -458,9 +448,7 @@ def test_every_unicode_whitespace_character_alone_is_a_blank_title_or_author(
 
 
 @pytest.mark.parametrize("character", LOOKS_BLANK_BUT_IS_NOT, ids=lambda c: f"U+{ord(c):04X}")
-def test_a_character_that_is_not_unicode_whitespace_is_not_blank(
-    api: TestClient, character: str
-) -> None:
+def test_a_character_that_is_not_unicode_whitespace_is_not_blank(api: TestClient, character: str) -> None:
     response = api.post("/v1/books", json=book_payload(title=character, author=character))
 
     assert response.status_code == 201
@@ -471,11 +459,7 @@ def test_the_published_pattern_and_the_validator_agree_on_every_character() -> N
     title = TypeAdapter(Title)
     # A lone surrogate is not text: pydantic refuses it as `string_unicode` before any rule runs.
     surrogates = range(0xD800, 0xE000)
-    probed = [
-        code
-        for code in [*range(0x10000), *range(0x10000, sys.maxunicode + 1, 97)]
-        if code not in surrogates
-    ]
+    probed = [code for code in [*range(0x10000), *range(0x10000, sys.maxunicode + 1, 97)] if code not in surrogates]
 
     disagreements = []
     for code in probed:
@@ -494,9 +478,7 @@ def test_the_published_pattern_and_the_validator_agree_on_every_character() -> N
 def test_surrounding_whitespace_is_dropped_from_a_title_and_an_author(api: TestClient) -> None:
     created = create_book(api, title="  Clean Code\n", author="\tR. Martin ")
 
-    updated = api.put(
-        f"/v1/books/{created['id']}", json={"title": " New \t", "author": "  Someone "}
-    ).json()
+    updated = api.put(f"/v1/books/{created['id']}", json={"title": " New \t", "author": "  Someone "}).json()
 
     assert (created["title"], created["author"]) == ("Clean Code", "R. Martin")
     assert (updated["title"], updated["author"]) == ("New", "Someone")
@@ -536,9 +518,7 @@ def test_an_update_keeps_the_place_of_the_book_in_the_list_and_is_repeatable(
     "query",
     ["offset=1&offset=2", "offset=false&offset=0.0", "limit=5&limit=5", "offset=0&limit=5&limit=6"],
 )
-def test_a_paging_parameter_given_twice_is_a_422_not_the_last_value(
-    api: TestClient, query: str
-) -> None:
+def test_a_paging_parameter_given_twice_is_a_422_not_the_last_value(api: TestClient, query: str) -> None:
     response = api.get(f"/v1/books?{query}")
 
     assert response.status_code == 422

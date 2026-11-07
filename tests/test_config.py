@@ -65,9 +65,7 @@ def test_invalid_values_are_rejected(field: str, value: object) -> None:
     ],
     ids=["auto-local", "auto-production", "explicit-json", "explicit-console"],
 )
-def test_log_format_resolves_from_environment(
-    environment: str, log_format: str, expected: str
-) -> None:
+def test_log_format_resolves_from_environment(environment: str, log_format: str, expected: str) -> None:
     settings = make_settings(environment=environment, log_format=log_format)
 
     assert settings.resolved_log_format == expected

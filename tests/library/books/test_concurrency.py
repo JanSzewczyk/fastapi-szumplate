@@ -66,7 +66,5 @@ def test_two_isbns_raced_by_sixteen_requests_create_exactly_two_books(
         results = list(pool.map(post, range(2 * PARALLEL)))
 
     for isbn_index in (0, 1):
-        assert sorted(code for index, code in results if index == isbn_index) == [201] + [409] * (
-            PARALLEL - 1
-        )
+        assert sorted(code for index, code in results if index == isbn_index) == [201] + [409] * (PARALLEL - 1)
     assert slow_books.list_page(limit=100, offset=0)[1] == 2

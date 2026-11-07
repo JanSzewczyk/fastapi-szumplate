@@ -48,6 +48,4 @@ def catalog() -> BookCatalog:
 def make_service(
     loans: LoanRepository, catalog: BookCatalog, *, today: date = TODAY, max_active: int = 3
 ) -> LoanService:
-    return LoanService(
-        loans, catalog, today=lambda: today, loan_days=14, max_active_per_member=max_active
-    )
+    return LoanService(loans, catalog, today=lambda: today, loan_days=14, max_active_per_member=max_active)

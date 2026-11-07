@@ -63,9 +63,9 @@ def test_without_example_removes_the_domain_its_hook_settings_and_contracts(
     assert "loan_days" not in config
     assert "default_page_size" in config
     assert "LOAN" not in (project / ".env.example").read_text(encoding="utf-8")
-    contracts = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))["tool"][
-        "importlinter"
-    ]["contracts"]
+    contracts = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["importlinter"][
+        "contracts"
+    ]
     assert contracts
     assert all(".library" not in str(contract) for contract in contracts)
 
@@ -89,9 +89,7 @@ def test_a_removed_block_leaves_no_run_of_blank_lines_in_the_docs(project: Path)
 
 
 @pytest.mark.parametrize("flags", [[], ["--without-example"]], ids=["rename", "bare"])
-def test_the_project_does_not_mention_the_template_tools_it_no_longer_has(
-    project: Path, flags: list[str]
-) -> None:
+def test_the_project_does_not_mention_the_template_tools_it_no_longer_has(project: Path, flags: list[str]) -> None:
     init_project.main(["orders-api", *flags, "--root", str(project)])
 
     tools = re.compile(r"init_project|smoke[_-]template|template-smoke")

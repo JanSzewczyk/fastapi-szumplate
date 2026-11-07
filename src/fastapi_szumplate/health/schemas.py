@@ -16,9 +16,7 @@ class HealthResponse(BaseModel):
 class ReadinessResponse(BaseModel):
     """Readiness probe payload."""
 
-    status: Literal["ready"] = Field(
-        default="ready", description="Every readiness check passed.", examples=["ready"]
-    )
+    status: Literal["ready"] = Field(default="ready", description="Every readiness check passed.", examples=["ready"])
     checks: dict[str, Literal["ok"]] = Field(
         description="Name of each registered check with its result.",
         examples=[{"storage": "ok"}],

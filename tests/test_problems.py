@@ -112,11 +112,7 @@ def test_domain_error_gets_its_own_type_and_is_logged_as_a_warning(
     assert body["type"] == "urn:problem:fastapi-szumplate:probe-refused"
     assert body["title"] == "Probe refused"
     assert body["detail"] == "not today"
-    refusals = [
-        json.loads(line)
-        for line in capsys.readouterr().out.splitlines()
-        if '"request_refused"' in line
-    ]
+    refusals = [json.loads(line) for line in capsys.readouterr().out.splitlines() if '"request_refused"' in line]
     assert refusals
     assert refusals[0]["level"] == "warning"
     assert "exception" not in refusals[0]
@@ -137,9 +133,7 @@ def test_an_unhandled_error_still_carries_the_cors_headers_and_the_request_id() 
     def boom() -> None:
         raise RuntimeError("internal detail that must not leak")
 
-    response = TestClient(app, raise_server_exceptions=False).get(
-        "/probe/boom", headers={"Origin": origin}
-    )
+    response = TestClient(app, raise_server_exceptions=False).get("/probe/boom", headers={"Origin": origin})
 
     assert response.status_code == 500
     assert response.headers["access-control-allow-origin"] == origin
@@ -194,9 +188,7 @@ def test_json_with_an_integer_beyond_the_parser_limit_is_a_422_but_invalid_utf8_
     ["abc", "9" * 5000],
     ids=["not-a-number", "beyond-the-digit-limit"],
 )
-def test_a_400_the_application_raises_from_a_value_error_stays_a_400(
-    probe: TestClient, value: str
-) -> None:
+def test_a_400_the_application_raises_from_a_value_error_stays_a_400(probe: TestClient, value: str) -> None:
     """`int()` of a long string raises the same `ValueError` the JSON parser does."""
     response = probe.get("/probe/convert", params={"value": value})
 

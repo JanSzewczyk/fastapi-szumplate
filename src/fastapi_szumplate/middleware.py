@@ -133,11 +133,7 @@ class _RefusedPreflight(Response):
     def __init__(self, refused: Response) -> None:
         # Starlette's refusal is a 400 with fixed text ("Disallowed CORS origin, method, ...").
         self.detail = bytes(refused.body).decode()
-        self.cors_headers = {
-            name: value
-            for name, value in refused.headers.items()
-            if not name.startswith("content-")
-        }
+        self.cors_headers = {name: value for name, value in refused.headers.items() if not name.startswith("content-")}
         super().__init__(status_code=refused.status_code)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

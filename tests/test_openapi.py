@@ -61,11 +61,7 @@ def test_no_framework_validation_schemas_are_published(spec: dict[str, Any]) -> 
 
 
 def test_every_route_sets_an_explicit_snake_case_operation_id(app: FastAPI) -> None:
-    routes = [
-        r.original_route
-        for r in iter_route_contexts(app.routes)
-        if isinstance(r.original_route, APIRoute)
-    ]
+    routes = [r.original_route for r in iter_route_contexts(app.routes) if isinstance(r.original_route, APIRoute)]
 
     assert routes
     for route in routes:
@@ -93,14 +89,10 @@ def test_every_route_with_a_body_documents_the_400_for_unreadable_bytes(
             assert "400" in operation["responses"], f"{method} {path}"
 
 
-def test_every_registered_problem_type_is_documented_in_some_response(
-    app: FastAPI, spec: dict[str, Any]
-) -> None:
+def test_every_registered_problem_type_is_documented_in_some_response(app: FastAPI, spec: dict[str, Any]) -> None:
     descriptions = " ".join(response["description"] for _, response in error_responses(spec))
 
-    takes_input = any(
-        op.get("parameters") or op.get("requestBody") for _, _, op in operations(spec)
-    )
+    takes_input = any(op.get("parameters") or op.get("requestBody") for _, _, op in operations(spec))
     expected = [
         kind
         for kind in app.state.problem_types

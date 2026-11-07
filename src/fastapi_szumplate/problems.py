@@ -46,9 +46,7 @@ class ValidationIssue(BaseModel):
         description="Where the problem is: `body`, `query`, `path` or `header`, then the field.",
         examples=[["query", "limit"]],
     )
-    msg: str = Field(
-        description="What is wrong.", examples=["Input should be less than or equal to 100"]
-    )
+    msg: str = Field(description="What is wrong.", examples=["Input should be less than or equal to 100"])
     type: str = Field(description="Pydantic error code.", examples=["less_than_equal"])
 
 
@@ -145,9 +143,7 @@ def domain_error_handler(
     async def handle(request: Request, exc: Exception) -> Response:
         kind = next(mapping[cls] for cls in type(exc).__mro__ if cls in mapping)
         log.warning("request_refused", problem=kind.slug, status=kind.status)
-        return problem(
-            request, status=kind.status, title=kind.title, detail=str(exc), type_=kind.type
-        )
+        return problem(request, status=kind.status, title=kind.title, detail=str(exc), type_=kind.type)
 
     return handle
 
@@ -164,10 +160,7 @@ def _allowed_methods(request: Request) -> list[str]:
     """Read the methods of every OpenAPI path that matches, not only the first matching route."""
     methods: set[str] = set()
     for template, item in request.app.openapi().get("paths", {}).items():
-        segments = (
-            "[^/]+" if segment.startswith("{") else re.escape(segment)
-            for segment in template.split("/")
-        )
+        segments = ("[^/]+" if segment.startswith("{") else re.escape(segment) for segment in template.split("/"))
         if re.fullmatch("/".join(segments), request.url.path):
             methods.update(m.upper() for m in item if m in _HTTP_METHODS)
     return sorted(methods)
@@ -205,9 +198,7 @@ def _is_unreadable_json_value(exc: StarletteHTTPException) -> bool:
 async def _http_exception_handler(request: Request, exc: Exception) -> Response:
     http_exc = cast("StarletteHTTPException", exc)
     if _is_unreadable_json_value(http_exc):
-        issue = ValidationIssue(
-            loc=["body"], msg="JSON contains an integer with too many digits", type="json_invalid"
-        )
+        issue = ValidationIssue(loc=["body"], msg="JSON contains an integer with too many digits", type="json_invalid")
         return _validation_problem(request, [issue])
     headers = dict(http_exc.headers or {})
     if http_exc.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
@@ -225,10 +216,7 @@ async def _http_exception_handler(request: Request, exc: Exception) -> Response:
 
 async def _validation_exception_handler(request: Request, exc: Exception) -> Response:
     validation_exc = cast("RequestValidationError", exc)
-    issues = [
-        ValidationIssue(loc=list(e["loc"]), msg=e["msg"], type=e["type"])
-        for e in validation_exc.errors()
-    ]
+    issues = [ValidationIssue(loc=list(e["loc"]), msg=e["msg"], type=e["type"]) for e in validation_exc.errors()]
     return _validation_problem(request, issues)
 
 

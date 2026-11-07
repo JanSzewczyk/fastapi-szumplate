@@ -73,9 +73,7 @@ def test_return_defaults_to_today_and_accepts_a_date(service: LoanService) -> No
     second = service.lend(book_id=BOOK_B, member_id="member-2")
 
     assert service.give_back(first.id, returned_on=None).returned_on == date(2026, 1, 6)
-    assert service.give_back(second.id, returned_on=date(2026, 1, 9)).returned_on == date(
-        2026, 1, 9
-    )
+    assert service.give_back(second.id, returned_on=date(2026, 1, 9)).returned_on == date(2026, 1, 9)
 
 
 def test_returning_twice_is_refused(service: LoanService) -> None:

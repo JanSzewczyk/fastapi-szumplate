@@ -222,9 +222,7 @@ def app_on(day: date, **settings: Any) -> TestClient:
 
 
 @pytest.mark.parametrize("member_id", ["a" * 64, "a.b_c-d", "0", "Member-1", "UPPER.lower_09"])
-def test_a_member_id_of_allowed_characters_and_length_is_accepted_as_written(
-    api: TestClient, member_id: str
-) -> None:
+def test_a_member_id_of_allowed_characters_and_length_is_accepted_as_written(api: TestClient, member_id: str) -> None:
     response = borrow(api, add_book(api), member_id)
 
     assert response.status_code == 201
@@ -236,9 +234,7 @@ def test_a_member_id_of_allowed_characters_and_length_is_accepted_as_written(
     ["a" * 65, "\u00e9", "m\n", "m m", "a/b", "m@x", "", None, 5, ["m"]],
     ids=["65-chars", "accented", "newline", "space", "slash", "at", "empty", "null", "int", "list"],
 )
-def test_a_member_id_outside_the_pattern_is_a_422_naming_the_field(
-    api: TestClient, member_id: Any
-) -> None:
+def test_a_member_id_outside_the_pattern_is_a_422_naming_the_field(api: TestClient, member_id: Any) -> None:
     response = api.post("/v1/loans", json={"book_id": add_book(api), "member_id": member_id})
 
     assert response.status_code == 422
@@ -266,9 +262,7 @@ def test_a_book_id_of_another_type_is_a_422(api: TestClient) -> None:
 
 
 def test_a_lending_body_that_is_not_text_is_a_400_problem(api: TestClient) -> None:
-    response = api.post(
-        "/v1/loans", content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"}
-    )
+    response = api.post("/v1/loans", content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"})
 
     assert response.status_code == 400
     assert response.headers["content-type"] == PROBLEM
@@ -494,9 +488,7 @@ def test_a_bad_return_body_is_a_422_before_the_loan_is_looked_up(api: TestClient
 def test_a_return_body_that_is_not_text_is_a_400_problem(api: TestClient) -> None:
     loan = borrow(api, add_book(api)).json()
 
-    response = return_loan(
-        api, loan, content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"}
-    )
+    response = return_loan(api, loan, content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"})
 
     assert response.status_code == 400
     assert response.headers["content-type"] == PROBLEM
@@ -628,9 +620,7 @@ def test_a_returned_loan_moves_from_the_active_list_to_the_returned_list(api: Te
         "active=2",
     ],
 )
-def test_malformed_list_parameters_are_a_422_naming_the_parameter(
-    api: TestClient, query: str
-) -> None:
+def test_malformed_list_parameters_are_a_422_naming_the_parameter(api: TestClient, query: str) -> None:
     response = api.get(f"/v1/loans?{query}")
 
     assert response.status_code == 422

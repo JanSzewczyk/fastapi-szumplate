@@ -27,9 +27,7 @@ class LoanCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    book_id: UUID = Field(
-        description="Book to borrow.", examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5e"]
-    )
+    book_id: UUID = Field(description="Book to borrow.", examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5e"])
     member_id: MemberId
 
 
@@ -52,9 +50,7 @@ class LoanResponse(BaseModel):
         description="Identifier assigned by the service.",
         examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5e"],
     )
-    book_id: UUID = Field(
-        description="The borrowed book.", examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5f"]
-    )
+    book_id: UUID = Field(description="The borrowed book.", examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5f"])
     member_id: MemberId
     borrowed_on: date = Field(description="Day the book was borrowed.", examples=["2026-01-06"])
     due_on: date = Field(description="Day the book is due back.", examples=["2026-01-20"])

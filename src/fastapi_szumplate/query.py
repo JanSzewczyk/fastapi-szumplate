@@ -37,11 +37,7 @@ def reject_repeated_query_parameters(request: Request) -> None:
     `oops` and `?offset=oops&offset=1` as `1`: the same request means two things. The spec says
     the parameter is a single value, so the request is invalid. The value is never echoed.
     """
-    repeated = [
-        name
-        for name in _scalar_query_parameters(request)
-        if len(request.query_params.getlist(name)) > 1
-    ]
+    repeated = [name for name in _scalar_query_parameters(request) if len(request.query_params.getlist(name)) > 1]
     if repeated:
         raise RequestValidationError(
             [

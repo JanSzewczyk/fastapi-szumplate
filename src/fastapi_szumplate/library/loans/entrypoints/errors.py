@@ -17,9 +17,7 @@ ALREADY_BORROWED = ProblemType("already-borrowed", "Member already has this book
 MEMBER_LIMIT_REACHED = ProblemType("member-limit-reached", "Member loan limit reached", 409)
 NO_FREE_COPY = ProblemType("no-free-copy", "No free copy", 409)
 LOAN_ALREADY_RETURNED = ProblemType("loan-already-returned", "Loan already returned", 409)
-RETURNED_BEFORE_BORROWED = ProblemType(
-    "returned-before-borrowed", "Returned before it was borrowed", 409
-)
+RETURNED_BEFORE_BORROWED = ProblemType("returned-before-borrowed", "Returned before it was borrowed", 409)
 
 ERRORS: dict[type[Exception], ProblemType] = {
     LoanNotFound: LOAN_NOT_FOUND,

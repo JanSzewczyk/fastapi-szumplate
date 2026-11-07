@@ -22,9 +22,7 @@ def test_export_writes_the_document_and_check_accepts_it(tmp_path: Path) -> None
     assert json.loads(target.read_text(encoding="utf-8"))["info"]["title"] == "fastapi-szumplate"
 
 
-def test_check_fails_for_a_stale_or_missing_file(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_check_fails_for_a_stale_or_missing_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     stale = tmp_path / "openapi.json"
     stale.write_text("{}\n", encoding="utf-8")
 

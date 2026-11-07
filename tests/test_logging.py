@@ -92,9 +92,7 @@ def test_log_level_filters_records(capsys: pytest.CaptureFixture[str]) -> None:
     assert lines(capsys) == []
 
 
-def test_request_is_logged_once_with_the_route_template(
-    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_request_is_logged_once_with_the_route_template(json_app: FastAPI, capsys: pytest.CaptureFixture[str]) -> None:
     @json_app.get("/things/{thing_id}", operation_id="get_thing_probe")
     def get_thing(thing_id: int) -> dict[str, int]:
         return {"id": thing_id}
@@ -147,18 +145,14 @@ def test_log_lines_written_by_a_handler_carry_the_request_id(
     assert inside["request_id"] == completed["request_id"] == response.headers["X-Request-ID"]
 
 
-def test_unmatched_path_is_logged_without_the_raw_path(
-    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_unmatched_path_is_logged_without_the_raw_path(json_app: FastAPI, capsys: pytest.CaptureFixture[str]) -> None:
     TestClient(json_app).get("/nope/123")
 
     [line] = lines(capsys)
     assert (line["route"], line["status"]) == ("unmatched", 404)
 
 
-def test_unhandled_error_is_logged_as_status_500(
-    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_unhandled_error_is_logged_as_status_500(json_app: FastAPI, capsys: pytest.CaptureFixture[str]) -> None:
     @json_app.get("/boom", operation_id="get_boom_probe")
     def boom() -> None:
         raise RuntimeError("secret internals")
@@ -248,9 +242,7 @@ def test_an_unhandled_error_does_not_log_the_request_headers(
     def boom() -> None:
         raise RuntimeError("secret internals")
 
-    TestClient(app, raise_server_exceptions=False).get(
-        "/boom", headers={"Authorization": "Bearer sekret-token-1"}
-    )
+    TestClient(app, raise_server_exceptions=False).get("/boom", headers={"Authorization": "Bearer sekret-token-1"})
 
     out = capsys.readouterr().out
     assert "sekret-token-1" not in out

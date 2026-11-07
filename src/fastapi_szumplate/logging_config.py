@@ -70,9 +70,7 @@ def configure_logging(settings: Settings) -> None:
         renderer = structlog.processors.JSONRenderer()
         # Locals are off: a frame's `scope` holds every request header, `Authorization` included.
         final: list[Processor] = [
-            structlog.processors.ExceptionRenderer(
-                structlog.tracebacks.ExceptionDictTransformer(show_locals=False)
-            )
+            structlog.processors.ExceptionRenderer(structlog.tracebacks.ExceptionDictTransformer(show_locals=False))
         ]
     else:
         renderer = structlog.dev.ConsoleRenderer(
