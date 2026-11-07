@@ -23,7 +23,7 @@ check:
 	uv run coverage report
 
 run:
-	uv run uvicorn fastapi_szumplate.main:create_app --factory --reload
+	uv run python -m fastapi_szumplate
 
 audit:
 	uv export --locked --no-emit-project -o requirements.txt
