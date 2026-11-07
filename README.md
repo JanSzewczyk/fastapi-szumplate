@@ -103,8 +103,9 @@ its rules grow enough to hurt; see [docs/explanation/architecture.md](docs/expla
 
 The example is a small library: books with a fixed number of copies, and loans with six rules
 (unique ISBN, a free copy, three active loans per member, no repeat borrow, return once, not
-before the borrow date). Each state-dependent rule answers 409 with its own problem type and has a
-parallel test that fails when the guard is removed. Storage is in memory behind a repository port.
+before the borrow date). Each of the five guarded rules answers 409 with its own problem type and
+has a parallel test that fails when the guard is removed; the sixth (not before the borrow date)
+is a plain domain check with a sequential test. Storage is in memory behind a repository port.
 <!-- end:example -->
 
 <!-- begin:bare -->
