@@ -1,0 +1,68 @@
+[project]
+name = "fastapi-szumplate"
+version = "0.1.0"
+description = "Production-ready FastAPI template with uv, Ruff, mypy strict and pytest"
+readme = "README.md"
+requires-python = ">=3.15"
+dependencies = [
+    "fastapi>=0.162.0",
+    "pydantic-settings>=2.0.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fastapi_szumplate"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "ruff>=0.17.4",
+]
+test = [
+    "coverage>=7.17.2",
+    "httpx2>=2.16.0",
+    "pytest>=9.2.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-timeout>=2.4.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py315"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "G", "LOG", "T20", "TRY400", "TRY401", "PT", "D"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fastapi_szumplate", "tests"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "S101"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+timeout = 60
+
+[tool.uv]
+default-groups = ["dev", "test"]
+
+[tool.coverage.run]
+branch = true
+source = ["fastapi_szumplate"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
