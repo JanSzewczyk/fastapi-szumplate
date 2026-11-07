@@ -104,6 +104,21 @@ source_modules = [
 forbidden_modules = ["fastapi_szumplate.library"]
 
 [[tool.importlinter.contracts]]
+name = "Nothing in the template imports the application factory"
+type = "forbidden"
+source_modules = [
+    "fastapi_szumplate.config",
+    "fastapi_szumplate.health",
+    "fastapi_szumplate.logging_config",
+    "fastapi_szumplate.middleware",
+    "fastapi_szumplate.openapi",
+    "fastapi_szumplate.pagination",
+    "fastapi_szumplate.problems",
+    "fastapi_szumplate.types",
+]
+forbidden_modules = ["fastapi_szumplate.main"]
+
+[[tool.importlinter.contracts]]
 name = "Loans domain imports the standard library only"
 type = "forbidden"
 source_modules = ["fastapi_szumplate.library.loans.domain"]
