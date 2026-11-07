@@ -170,6 +170,15 @@ make docker-run
 The image is multi-stage, runs as a non-root user and has a health check. `compose.yaml` runs it
 with a read-only filesystem. Docker is not required for development.
 
+`compose.yaml` reads `.env` through `env_file` with `required: false`, which needs Docker Compose
+2.24 or newer. `make docker-run` and `compose.yaml` force `ENVIRONMENT=production`, `HOST` and
+`PORT`; everything else comes from your `.env`.
+
+Run one worker and one replica. Anything the app keeps in memory is per process, so a second
+worker or replica would not see it. The example's repositories and the locks that make its <!-- only:example -->
+rules atomic (`threading.RLock`) are such state; move them to a database first, as <!-- only:example -->
+[docs/how-to/swap-in-a-database.md](docs/how-to/swap-in-a-database.md) shows. <!-- only:example -->
+
 ## CI
 
 `.github/workflows/ci.yml` runs on push, pull request and weekly: `check` (`make check` and the
