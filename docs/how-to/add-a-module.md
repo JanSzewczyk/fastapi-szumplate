@@ -1,7 +1,11 @@
 # Add a module
 
 Create a package next to `health/` (or inside your own domain package) and start with the default
-shape. The example's `library/books/` is the model to copy.
+shape.
+
+<!-- begin:example -->
+The example's `library/books/` is the model to copy.
+<!-- end:example -->
 
 ## 1. The default shape
 
@@ -56,17 +60,25 @@ write must be one atomic step, and a test must prove it:
 1. Give the repository one guard (a lock, a conditional `UPDATE`, a unique index).
 2. Write a parallel test: a `threading.Barrier`, one `TestClient` per thread, assert the sorted
    status codes and the final state. Widen the race window with a test-only repository subclass
-   that sleeps after a read (see `tests/library/loans/test_concurrency.py`).
+   that sleeps after a read.
 3. Remove the guard once and watch the test fail. Run the mutant from a copy of the repository and
    print `fastapi_szumplate.__file__` first; an editable install otherwise imports the original
    and the test stays green.
 
+<!-- begin:example -->
+The example does this in `tests/library/loans/test_concurrency.py`.
+<!-- end:example -->
+
 ## 5. Move a module to the hexagonal shape
 
 Only when a concrete pain shows: the same rule copied in several places, a rule test that needs a
-database, or business terms missing from the code. Then follow `library/loans/`: `domain/` (rules,
-standard library only), `domain/ports.py`, `service_layer/`, `adapters/`, `entrypoints/`. Add an
-import-linter contract like "Loans layers point toward the domain".
+database, or business terms missing from the code. Then add `domain/` (rules, standard library
+only), `domain/ports.py`, `service_layer/`, `adapters/` and `entrypoints/`, and an import-linter
+contract that points the layers toward the domain.
+
+<!-- begin:example -->
+`library/loans/` is the model, and its contract is "Loans layers point toward the domain".
+<!-- end:example -->
 
 ## 6. Finish
 

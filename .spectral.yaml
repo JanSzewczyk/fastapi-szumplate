@@ -4,7 +4,7 @@ extends: ["spectral:oas"]
 rules:
   # Team rules on top of spectral:oas.
   operation-id-snake-case:
-    description: operationId is snake_case, verb first (list_books, create_loan).
+    description: operationId is snake_case, verb first (list_orders, create_order).
     severity: error
     given: "$.paths[*][*].operationId"
     then:

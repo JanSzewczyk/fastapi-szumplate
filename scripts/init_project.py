@@ -20,8 +20,9 @@ their own (`<!-- ... -->` in Markdown, `# ...` elsewhere):
     ...
     <!-- end:example -->
 
-The audiences are `template` (always removed here), `example` (kept unless `--without-example`)
-and `bare` (kept only with `--without-example`). The marker comments themselves are removed.
+The audiences are `template` (always removed here), `project` (always kept), `example` (kept
+unless `--without-example`) and `bare` (kept only with `--without-example`). The marker comments
+themselves are removed. `--check-references` lists what still names the removed example.
 """
 
 import argparse
@@ -48,7 +49,24 @@ TEXT_SUFFIXES = {
     ".txt",
 }
 TEXT_NAMES = {"Makefile", "Dockerfile", ".dockerignore", ".gitignore", ".pre-commit-config.yaml"}
-SKIP_DIRS = {".git", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".hypothesis",
+    ".schemathesis",
+    ".import_linter_cache",
+}
+EXAMPLE_DOCS = ("docs/how-to/remove-the-example.md", "docs/how-to/swap-in-a-database.md")
+# Words that name the example domain. "standard library" is the Python term and is allowed.
+EXAMPLE_WORDS = re.compile(
+    r"\b(?:library|include_library|books?|loans?|loans?_\w+|isbn|remove-the-example"
+    r"|swap-in-a-database)\b",
+    re.IGNORECASE,
+)
 THIS_SCRIPT = Path(__file__).resolve()
 MARKER = re.compile(r"(?:<!--\s*|#\s*)(?P<kind>only|begin|end):(?P<audience>[a-z]+)(?:\s*-->)?\s*$")
 
@@ -88,6 +106,8 @@ def remove_example(root: Path, package: str) -> None:
     """Delete the example domain and everything that points at it."""
     shutil.rmtree(root / "src" / package / "library", ignore_errors=True)
     shutil.rmtree(root / "tests" / "library", ignore_errors=True)
+    for name in EXAMPLE_DOCS:
+        (root / name).unlink(missing_ok=True)
 
     main = root / "src" / package / "main.py"
     lines = main.read_text(encoding="utf-8").splitlines(keepends=True)
@@ -145,8 +165,26 @@ def apply_audience(root: Path, keep: frozenset[str]) -> None:
     for path in text_files(root):
         text = path.read_text(encoding="utf-8")
         updated = apply_markers(text, keep)
+        if updated != text and path.suffix == ".md":
+            updated = re.sub(r"\n{3,}", "\n\n", updated)  # a removed block leaves a gap
         if updated != text:
             path.write_text(updated, encoding="utf-8")
+
+
+def find_example_references(root: Path, *, skip: frozenset[str] = frozenset()) -> list[str]:
+    """Return `path:line: text` for every line that still names the example domain.
+
+    `skip` lists relative paths to leave out, for a tree whose generated files are not rebuilt yet.
+    """
+    found: list[str] = []
+    for path in text_files(root):
+        relative = path.relative_to(root).as_posix()
+        if relative in skip or path.name == "uv.lock":
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if EXAMPLE_WORDS.search(line.replace("standard library", "")):
+                found.append(f"{relative}:{number}: {line.strip()}")
+    return found
 
 
 def drop_template_machinery(root: Path) -> None:
@@ -165,14 +203,28 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        "name", help="new distribution name, lowercase with dashes, e.g. orders-api"
+        "name",
+        nargs="?",
+        help="new distribution name, lowercase with dashes, e.g. orders-api",
     )
     parser.add_argument(
         "--without-example", action="store_true", help="also delete the example domain"
     )
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: cwd)")
+    parser.add_argument(
+        "--check-references",
+        action="store_true",
+        help="do not change anything: list the lines that still name the example, exit 1 if any",
+    )
     args = parser.parse_args(argv)
 
+    if args.check_references:
+        leftovers = find_example_references(args.root.resolve())
+        print("\n".join(leftovers))
+        return 1 if leftovers else 0
+
+    if args.name is None:
+        parser.error("the name argument is required")
     if not NAME_PATTERN.fullmatch(args.name):
         print(
             f"{args.name!r} is not a valid name: use lowercase letters, digits and dashes.",
@@ -190,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.without_example:
         remove_example(root, args.name.replace("-", "_"))
     drop_template_machinery(root)
-    apply_audience(root, frozenset({"bare"} if args.without_example else {"example"}))
+    apply_audience(root, frozenset({"project", "bare" if args.without_example else "example"}))
     print(f"Renamed to {args.name}. Next: review the contact URL in openapi.py, then")
     print("  uv lock --check && make openapi && make check")
     return 0

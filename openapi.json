@@ -406,7 +406,7 @@
             ],
             "description": "Explanation of this occurrence. Do not parse it.",
             "examples": [
-              "Book not found."
+              "The resource does not exist."
             ],
             "title": "Detail"
           },

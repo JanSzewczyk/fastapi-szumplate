@@ -5,6 +5,7 @@ All notable changes to this template are recorded here. The format follows
 
 ## [Unreleased]
 
+<!-- begin:template -->
 ### Added
 
 - Typed settings (`ENVIRONMENT`, `LOG_LEVEL`, `LOG_FORMAT`, `DOCS_ENABLED`, `CORS_ORIGINS`, server
@@ -44,3 +45,4 @@ All notable changes to this template are recorded here. The format follows
 
 - Dependency floors raised to the locked versions; CI actions pinned to verified versions.
 - Coverage threshold raised from 90 to 95.
+<!-- end:template -->
