@@ -32,13 +32,13 @@ class BookRepositoryContract:
     def test_second_book_with_the_same_isbn_is_refused(self, repo: BookRepository) -> None:
         repo.add(BookFactory.build(isbn=isbn_for(1)))
 
-        with pytest.raises(IsbnAlreadyExists):
+        with pytest.raises(IsbnAlreadyExists, match=f"ISBN {isbn_for(1)} already exists"):
             repo.add(BookFactory.build(isbn=isbn_for(1)))
 
     def test_a_refused_book_is_not_stored(self, repo: BookRepository) -> None:
         repo.add(BookFactory.build(isbn=isbn_for(1)))
         refused = BookFactory.build(isbn=isbn_for(1))
-        with pytest.raises(IsbnAlreadyExists):
+        with pytest.raises(IsbnAlreadyExists, match=f"ISBN {isbn_for(1)} already exists"):
             repo.add(refused)
 
         assert repo.get(refused.id) is None
@@ -53,8 +53,10 @@ class BookRepositoryContract:
         assert repo.get(book.id) == changed
 
     def test_update_of_an_unknown_book_is_refused(self, repo: BookRepository) -> None:
-        with pytest.raises(BookNotFound):
-            repo.update(BookFactory.build())
+        unknown = BookFactory.build()
+
+        with pytest.raises(BookNotFound, match=f"Book {unknown.id} not found"):
+            repo.update(unknown)
 
     def test_pages_keep_insertion_order_and_report_the_total(self, repo: BookRepository) -> None:
         books = BookFactory.build_batch(5)

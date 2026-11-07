@@ -54,7 +54,7 @@ def test_update_changes_title_and_author_but_keeps_isbn_and_capacity(service: Bo
 
 
 def test_update_unknown_book_raises_not_found(service: BookService) -> None:
-    with pytest.raises(BookNotFound):
+    with pytest.raises(BookNotFound, match=f"Book {UUID(int=2)} not found"):
         service.update(UUID(int=2), title="T", author="A")
 
 

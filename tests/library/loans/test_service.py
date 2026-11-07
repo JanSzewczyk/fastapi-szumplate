@@ -32,21 +32,21 @@ def test_lend_stores_a_loan_due_after_the_configured_days(service: LoanService) 
 
 
 def test_lending_an_unknown_book_is_refused(service: LoanService) -> None:
-    with pytest.raises(BookNotInCatalog):
+    with pytest.raises(BookNotInCatalog, match=f"Book {UUID(int=404)} not found"):
         service.lend(book_id=UUID(int=404), member_id="member-1")
 
 
 def test_lend_refuses_the_same_book_twice_to_one_member(service: LoanService) -> None:
     service.lend(book_id=BOOK_B, member_id="member-1")
 
-    with pytest.raises(AlreadyBorrowed):
+    with pytest.raises(AlreadyBorrowed, match=f"Member member-1 already has book {BOOK_B} on loan"):
         service.lend(book_id=BOOK_B, member_id="member-1")
 
 
 def test_lend_refuses_when_no_copy_is_free(service: LoanService) -> None:
     service.lend(book_id=BOOK_A, member_id="member-1")
 
-    with pytest.raises(NoFreeCopy):
+    with pytest.raises(NoFreeCopy, match=f"No free copy of book {BOOK_A}"):
         service.lend(book_id=BOOK_A, member_id="member-2")
 
 
@@ -56,7 +56,7 @@ def test_lend_refuses_a_member_at_the_limit(loan_repository: LoanRepository) -> 
     for book_id in list(books)[:3]:
         service.lend(book_id=book_id, member_id="member-1")
 
-    with pytest.raises(MemberLimitReached):
+    with pytest.raises(MemberLimitReached, match="Member member-1 already has 3 active loans"):
         service.lend(book_id=list(books)[3], member_id="member-1")
 
 
@@ -82,14 +82,14 @@ def test_returning_twice_is_refused(service: LoanService) -> None:
     loan = service.lend(book_id=BOOK_A, member_id="member-1")
     service.give_back(loan.id, returned_on=None)
 
-    with pytest.raises(LoanAlreadyReturned):
+    with pytest.raises(LoanAlreadyReturned, match=f"Loan {loan.id} was already returned"):
         service.give_back(loan.id, returned_on=None)
 
 
 def test_unknown_loan_is_not_found(service: LoanService) -> None:
-    with pytest.raises(LoanNotFound):
+    with pytest.raises(LoanNotFound, match=f"Loan {UUID(int=5)} not found"):
         service.get(UUID(int=5))
-    with pytest.raises(LoanNotFound):
+    with pytest.raises(LoanNotFound, match=f"Loan {UUID(int=5)} not found"):
         service.give_back(UUID(int=5), returned_on=None)
 
 
