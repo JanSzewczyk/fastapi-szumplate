@@ -1,6 +1,8 @@
 """Contract tests over the generated OpenAPI document of the whole app."""
 
+import json
 import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -136,3 +138,31 @@ def test_docs_are_off_by_default_and_on_when_enabled() -> None:
     for path in ("/docs", "/redoc", "/openapi.json"):
         assert off.get(path).status_code == 404
         assert on.get(path).status_code == 200
+
+
+def test_docs_off_hides_every_documentation_path_with_a_problem_404() -> None:
+    client = TestClient(create_app(make_settings()))
+
+    for path in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"):
+        response = client.get(path)
+        assert response.status_code == 404, path
+        assert response.headers["content-type"] == PROBLEM_MEDIA_TYPE, path
+
+
+def test_docs_on_serve_html_pages_and_the_committed_document() -> None:
+    client = TestClient(create_app(make_settings(docs_enabled=True)))
+    committed = json.loads((Path(__file__).resolve().parent.parent / "openapi.json").read_text())
+
+    assert client.get("/docs").headers["content-type"].startswith("text/html")
+    assert client.get("/redoc").headers["content-type"].startswith("text/html")
+    assert client.get("/openapi.json").json() == committed
+
+
+def test_docs_on_do_not_change_how_the_api_answers() -> None:
+    client = TestClient(create_app(make_settings(docs_enabled=True)))
+
+    response = client.get("/v1/books/not-a-uuid")
+
+    assert response.status_code == 422
+    assert response.headers["content-type"] == PROBLEM_MEDIA_TYPE
+    assert client.delete("/v1/books").headers["Allow"] == "GET, POST"
