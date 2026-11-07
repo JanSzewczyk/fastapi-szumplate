@@ -68,9 +68,16 @@ def configure_logging(settings: Settings) -> None:
     renderer: Processor
     if settings.resolved_log_format == "json":
         renderer = structlog.processors.JSONRenderer()
-        final: list[Processor] = [structlog.processors.dict_tracebacks]
+        # Locals are off: a frame's `scope` holds every request header, `Authorization` included.
+        final: list[Processor] = [
+            structlog.processors.ExceptionRenderer(
+                structlog.tracebacks.ExceptionDictTransformer(show_locals=False)
+            )
+        ]
     else:
-        renderer = structlog.dev.ConsoleRenderer(colors=sys.stdout.isatty())
+        renderer = structlog.dev.ConsoleRenderer(
+            colors=sys.stdout.isatty(), exception_formatter=structlog.dev.plain_traceback
+        )  # not the rich formatter: it prints the locals
         final = []
 
     structlog.configure(

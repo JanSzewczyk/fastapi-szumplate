@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
@@ -166,6 +166,27 @@ def test_unhandled_error_is_logged_as_status_500(
     [line] = lines(capsys)
     assert response.status_code == 500
     assert (line["event"], line["status"], line["level"]) == ("request_completed", 500, "error")
+
+
+@pytest.mark.parametrize("log_format", ["json", "console"])
+def test_a_logged_traceback_keeps_the_frames_but_not_the_local_variables(
+    log_format: Literal["json", "console"], capsys: pytest.CaptureFixture[str]
+) -> None:
+    configure_logging(make_settings(log_format=log_format))
+
+    def handle_request() -> None:
+        headers = {"Authorization": "Bearer sekret-token-1"}  # a local, as ASGI's `scope` is
+        raise RuntimeError(f"failed with {len(headers)} header")
+
+    try:
+        handle_request()
+    except RuntimeError:
+        structlog.get_logger("probe").exception("job_failed")
+
+    out = capsys.readouterr().out
+    assert "sekret-token-1" not in out
+    assert "handle_request" in out
+    assert "RuntimeError" in out
 
 
 def test_cors_is_off_without_origins_and_exposes_the_request_id_with_them() -> None:

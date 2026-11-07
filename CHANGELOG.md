@@ -26,6 +26,11 @@ All notable changes to this template are recorded here. The format follows
 - `scripts/init_project.py` to rename a copy and optionally remove the example.
 - Documentation: how-to guides, problem type reference and architecture notes.
 
+### Fixed
+
+- Logged tracebacks no longer include local variables: a frame's `scope` holds the request
+  headers, `Authorization` included. The console format uses the plain traceback formatter.
+
 ### Changed
 
 - Dependency floors raised to the locked versions; CI actions pinned to verified versions.
