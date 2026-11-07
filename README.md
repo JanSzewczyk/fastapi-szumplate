@@ -32,8 +32,9 @@ make install
 make run          # python -m fastapi_szumplate
 ```
 
-The API listens on http://127.0.0.1:8000. With `DOCS_ENABLED=true` (set in `.env.example`) the
-interactive docs are at `/docs` and the spec at `/openapi.json`; they are **off by default**.
+The API listens on http://127.0.0.1:8000. The interactive docs (`/docs`, `/redoc`) and the spec
+(`/openapi.json`) are **off by default**, and `.env.example` keeps them off. Set `DOCS_ENABLED=true`
+in your `.env` to read them while you develop; leave them off on a public API.
 
 Start it with `python -m fastapi_szumplate`, not with the `uvicorn` command. The module
 configures logging once and tells uvicorn to leave it alone (`log_config=None`) and to skip its own
