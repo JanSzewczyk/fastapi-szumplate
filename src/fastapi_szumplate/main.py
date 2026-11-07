@@ -7,6 +7,8 @@ from fastapi_szumplate.config import Settings
 from fastapi_szumplate.health.router import router as health_router
 from fastapi_szumplate.logging_config import configure_logging
 from fastapi_szumplate.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
+from fastapi_szumplate.openapi import HEALTH_TAG, METADATA, install_openapi
+from fastapi_szumplate.problems import add_problem_handlers
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -20,8 +22,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     settings = settings or Settings()
     configure_logging(settings)
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(
+        title=settings.app_name,
+        docs_url="/docs" if settings.docs_enabled else None,
+        redoc_url="/redoc" if settings.docs_enabled else None,
+        openapi_url="/openapi.json" if settings.docs_enabled else None,
+        redirect_slashes=False,
+        openapi_tags=[HEALTH_TAG],
+        **METADATA,
+    )
     app.state.settings = settings
+    add_problem_handlers(app)
+    install_openapi(app)
     app.include_router(health_router)
 
     # Starlette makes the last middleware added the outermost one.

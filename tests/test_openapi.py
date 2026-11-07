@@ -1,0 +1,111 @@
+"""Contract tests over the generated OpenAPI document of the whole app."""
+
+import re
+from typing import Any
+
+import pytest
+from fastapi import FastAPI
+from fastapi.routing import APIRoute, iter_route_contexts
+from fastapi.testclient import TestClient
+
+from fastapi_szumplate.main import create_app
+from fastapi_szumplate.problems import PROBLEM_MEDIA_TYPE
+from tests.conftest import make_settings
+
+HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options"}
+
+
+@pytest.fixture
+def spec(app: FastAPI) -> dict[str, Any]:
+    return app.openapi()
+
+
+def operations(spec: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:
+    return [
+        (method.upper(), path, operation)
+        for path, item in spec["paths"].items()
+        for method, operation in item.items()
+        if method in HTTP_METHODS
+    ]
+
+
+def error_responses(spec: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (f"{method} {path} {status}", response)
+        for method, path, operation in operations(spec)
+        for status, response in operation["responses"].items()
+        if status[0] in "45"
+    ]
+
+
+def test_no_error_response_offers_application_json(spec: dict[str, Any]) -> None:
+    for where, response in error_responses(spec):
+        assert set(response["content"]) == {PROBLEM_MEDIA_TYPE}, where
+
+
+def test_every_error_response_uses_the_problem_detail_schema(spec: dict[str, Any]) -> None:
+    for where, response in error_responses(spec):
+        schema = response["content"][PROBLEM_MEDIA_TYPE]["schema"]
+        assert schema == {"$ref": "#/components/schemas/ProblemDetail"}, where
+
+
+def test_no_framework_validation_schemas_are_published(spec: dict[str, Any]) -> None:
+    names = set(spec.get("components", {}).get("schemas", {}))
+
+    assert not names & {"HTTPValidationError", "ValidationError"}
+
+
+def test_every_route_sets_an_explicit_snake_case_operation_id(app: FastAPI) -> None:
+    routes = [
+        r.original_route
+        for r in iter_route_contexts(app.routes)
+        if isinstance(r.original_route, APIRoute)
+    ]
+
+    assert routes
+    for route in routes:
+        assert route.operation_id is not None, route.path
+        assert re.fullmatch(r"[a-z]+(_[a-z0-9]+)*", route.operation_id), route.operation_id
+
+
+def test_operation_ids_are_unique(spec: dict[str, Any]) -> None:
+    ids = [operation["operationId"] for _, _, operation in operations(spec)]
+
+    assert len(ids) == len(set(ids))
+
+
+def test_every_route_with_input_documents_a_422(spec: dict[str, Any]) -> None:
+    for method, path, operation in operations(spec):
+        if operation.get("parameters") or operation.get("requestBody"):
+            assert "422" in operation["responses"], f"{method} {path}"
+
+
+def test_every_operation_has_a_summary_and_tag(spec: dict[str, Any]) -> None:
+    for method, path, operation in operations(spec):
+        assert operation.get("summary"), f"{method} {path}"
+        assert operation.get("tags"), f"{method} {path}"
+        assert "Args:" not in operation.get("description", ""), f"{method} {path}"
+        assert "Returns:" not in operation.get("description", ""), f"{method} {path}"
+
+
+def test_metadata_describes_the_api(spec: dict[str, Any]) -> None:
+    info = spec["info"]
+
+    assert info["license"]["name"] == "MIT"
+    assert info["contact"]["name"]
+    assert info["description"]
+    assert spec["servers"]
+    assert {tag["name"] for tag in spec["tags"]} >= {"health"}
+
+
+def test_openapi_document_is_generated_once(app: FastAPI) -> None:
+    assert app.openapi() is app.openapi()
+
+
+def test_docs_are_off_by_default_and_on_when_enabled() -> None:
+    off = TestClient(create_app(make_settings()))
+    on = TestClient(create_app(make_settings(docs_enabled=True)))
+
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert off.get(path).status_code == 404
+        assert on.get(path).status_code == 200

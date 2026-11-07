@@ -1,0 +1,205 @@
+"""Problem Details (RFC 9457): one error model and the handlers that produce it."""
+
+import re
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
+from http import HTTPStatus
+from typing import Any, Final, cast
+
+import structlog
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import JSONResponse, Response
+
+PROBLEM_MEDIA_TYPE: Final = "application/problem+json"
+PROBLEM_TYPE_PREFIX: Final = "urn:problem:fastapi-szumplate:"
+_HTTP_METHODS: Final = frozenset({"get", "put", "post", "delete", "patch", "head", "options"})
+_UNHANDLED_DETAIL: Final = "The server failed to process the request."
+
+log = structlog.get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ProblemType:
+    """A machine-readable kind of error: a stable slug, a stable title and its HTTP status."""
+
+    slug: str
+    title: str
+    status: int
+
+    @property
+    def type(self) -> str:
+        """Return the `type` URI clients branch on."""
+        return f"{PROBLEM_TYPE_PREFIX}{self.slug}"
+
+
+VALIDATION_ERROR: Final = ProblemType("validation-error", "Request validation failed", 422)
+
+
+class ValidationIssue(BaseModel):
+    """One rejected input value, without the value itself."""
+
+    loc: list[str | int] = Field(
+        description="Where the problem is: `body`, `query`, `path` or `header`, then the field.",
+        examples=[["query", "limit"]],
+    )
+    msg: str = Field(
+        description="What is wrong.", examples=["Input should be less than or equal to 100"]
+    )
+    type: str = Field(description="Pydantic error code.", examples=["less_than_equal"])
+
+
+class ProblemDetail(BaseModel):
+    """The one error shape every endpoint returns (RFC 9457)."""
+
+    type: str = Field(
+        default="about:blank",
+        description="URI that identifies the kind of problem; clients branch on it.",
+        examples=["urn:problem:fastapi-szumplate:validation-error"],
+    )
+    title: str = Field(description="Short, stable summary of the kind.", examples=["Not Found"])
+    status: int = Field(description="HTTP status code.", examples=[404])
+    detail: str | None = Field(
+        default=None,
+        description="Explanation of this occurrence. Do not parse it.",
+        examples=["Book not found."],
+    )
+    errors: list[ValidationIssue] | None = Field(
+        default=None, description="Rejected inputs; present on validation errors only."
+    )
+    request_id: str | None = Field(
+        default=None,
+        description="Value of the X-Request-ID response header, to quote when asking for support.",
+        examples=["0192f5e0-5a3b-7c11-9d2e-3f6a1b2c4d5e"],
+    )
+
+
+def problem_response(*types: ProblemType, description: str | None = None) -> dict[str, Any]:
+    """Build a `responses` entry for an error status.
+
+    The description lists the problem types the status can carry, so the spec documents each one.
+    """
+    if description is None:
+        description = "; ".join(f"{t.title} (`{t.slug}`)" for t in types) or "Error"
+    return {
+        "model": ProblemDetail,
+        "description": description,
+        "content": {PROBLEM_MEDIA_TYPE: {}},
+    }
+
+
+def register_problem_types(app: FastAPI, *types: ProblemType) -> None:
+    """Record the problem types an app can answer with, so tests can check they are documented."""
+    existing: list[ProblemType] = getattr(app.state, "problem_types", [])
+    app.state.problem_types = [*existing, *types]
+
+
+def problem(
+    request: Request,
+    *,
+    status: int,
+    title: str,
+    detail: str | None = None,
+    type_: str = "about:blank",
+    errors: list[ValidationIssue] | None = None,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
+    """Render a Problem Details response, carrying the request id when one is bound."""
+    body = ProblemDetail(
+        type=type_,
+        title=title,
+        status=status,
+        detail=detail,
+        errors=errors,
+        request_id=request.scope.get("state", {}).get("request_id"),
+    )
+    return JSONResponse(
+        body.model_dump(mode="json", exclude_none=True),
+        status_code=status,
+        media_type=PROBLEM_MEDIA_TYPE,
+        headers=dict(headers) if headers else None,
+    )
+
+
+def domain_error_handler(
+    mapping: Mapping[type[Exception], ProblemType],
+) -> Callable[[Request, Exception], Awaitable[Response]]:
+    """Build the one handler a domain registers for its exceptions.
+
+    The mapping keeps domain exceptions free of HTTP: the domain raises, this turns it into a
+    problem with its own type. A refusal is expected, so it is a warning without a traceback.
+    """
+
+    async def handle(request: Request, exc: Exception) -> Response:
+        kind = mapping[type(exc)]
+        log.warning("request_refused", problem=kind.slug, status=kind.status)
+        return problem(
+            request, status=kind.status, title=kind.title, detail=str(exc), type_=kind.type
+        )
+
+    return handle
+
+
+def _allowed_methods(request: Request) -> list[str]:
+    """Read the methods of every OpenAPI path that matches, not only the first matching route."""
+    methods: set[str] = set()
+    for template, item in request.app.openapi().get("paths", {}).items():
+        segments = (
+            "[^/]+" if segment.startswith("{") else re.escape(segment)
+            for segment in template.split("/")
+        )
+        if re.fullmatch("/".join(segments), request.url.path):
+            methods.update(m.upper() for m in item if m in _HTTP_METHODS)
+    return sorted(methods)
+
+
+async def _http_exception_handler(request: Request, exc: Exception) -> Response:
+    http_exc = cast("StarletteHTTPException", exc)
+    headers = dict(http_exc.headers or {})
+    if http_exc.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
+        allowed = _allowed_methods(request)
+        if allowed:
+            headers["Allow"] = ", ".join(allowed)
+    return problem(
+        request,
+        status=http_exc.status_code,
+        title=HTTPStatus(http_exc.status_code).phrase,
+        detail=str(http_exc.detail),
+        headers=headers,
+    )
+
+
+async def _validation_exception_handler(request: Request, exc: Exception) -> Response:
+    validation_exc = cast("RequestValidationError", exc)
+    issues = [
+        ValidationIssue(loc=list(e["loc"]), msg=e["msg"], type=e["type"])
+        for e in validation_exc.errors()
+    ]
+    return problem(
+        request,
+        status=VALIDATION_ERROR.status,
+        title=VALIDATION_ERROR.title,
+        detail="One or more inputs are invalid.",
+        type_=VALIDATION_ERROR.type,
+        errors=issues,
+    )
+
+
+async def _unhandled_exception_handler(request: Request, _exc: Exception) -> Response:
+    # Starlette re-raises after this response, so the server logs the traceback once.
+    return problem(
+        request,
+        status=500,
+        title=HTTPStatus.INTERNAL_SERVER_ERROR.phrase,
+        detail=_UNHANDLED_DETAIL,
+    )
+
+
+def add_problem_handlers(app: FastAPI) -> None:
+    """Make every error the framework raises itself answer with Problem Details."""
+    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+    app.add_exception_handler(Exception, _unhandled_exception_handler)
+    register_problem_types(app, VALIDATION_ERROR)
