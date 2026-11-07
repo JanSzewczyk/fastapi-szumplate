@@ -671,3 +671,10 @@ def test_loan_responses_are_application_json(api: TestClient) -> None:
         return_loan(api, created.json()),
     ):
         assert response.headers["content-type"] == "application/json"
+
+
+def test_a_loan_filter_given_twice_is_a_422(api: TestClient) -> None:
+    response = api.get("/v1/loans?member_id=a&member_id=b")
+
+    assert response.status_code == 422
+    assert [issue["loc"] for issue in response.json()["errors"]] == [["query", "member_id"]]

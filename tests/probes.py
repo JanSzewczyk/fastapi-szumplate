@@ -41,6 +41,13 @@ def add_probe_routes(app: FastAPI) -> FastAPI:
     def limited(limit: Annotated[int, Query(le=100)]) -> dict[str, int]:
         return {"limit": limit}
 
+    @app.get("/probe/tags", operation_id="get_probe_tags")
+    def tags(
+        tag: Annotated[list[str] | None, Query()] = None,
+        colour: Annotated[str | None, Query()] = None,
+    ) -> dict[str, list[str] | str | None]:
+        return {"tag": tag, "colour": colour}
+
     @app.get("/probe/items/{item_id}", operation_id="get_probe_item")
     def get_item(item_id: Annotated[int, Path()]) -> dict[str, int]:
         return {"item_id": item_id}

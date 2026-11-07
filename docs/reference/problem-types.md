@@ -5,7 +5,7 @@ for people. Types are `urn:problem:fastapi-szumplate:<slug>`.
 
 | Slug | Status | Title | When |
 | --- | --- | --- | --- |
-| `validation-error` | 422 | Request validation failed | A body, path or query value is invalid on its own. `errors` lists `loc`, `msg`, `type`; the submitted value is never returned. |
+| `validation-error` | 422 | Request validation failed | A body, path or query value is invalid on its own, or a query parameter that takes one value is given twice (`type` `repeated_parameter`). `errors` lists `loc`, `msg`, `type`; the submitted value is never returned. |
 | `service-not-ready` | 503 | Service not ready | A readiness check failed. `detail` names the checks, not the errors. |
 | `book-not-found` | 404 | Book not found | The book id is unknown (also when lending). | <!-- only:example -->
 | `isbn-already-exists` | 409 | ISBN already exists | Another book has this ISBN. | <!-- only:example -->
