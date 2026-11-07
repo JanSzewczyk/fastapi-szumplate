@@ -75,7 +75,7 @@ def test_member_below_the_limit_is_served() -> None:
 
 
 def test_book_with_every_copy_out_is_refused() -> None:
-    with pytest.raises(NoFreeCopy):
+    with pytest.raises(NoFreeCopy, match=f"No free copy of book {BOOK}"):
         lend(active_of_book=2, copies=2)
 
 
@@ -86,14 +86,14 @@ def test_book_with_a_free_copy_is_served() -> None:
 def test_already_borrowed_wins_over_the_limit_and_the_stock() -> None:
     held = [LoanFactory.build(book_id=BOOK), *LoanFactory.build_batch(2)]
 
-    with pytest.raises(AlreadyBorrowed):
+    with pytest.raises(AlreadyBorrowed, match=f"already has book {BOOK} on loan"):
         lend(active_of_member=held, max_active=3, active_of_book=1, copies=1)
 
 
 def test_member_limit_wins_over_the_stock() -> None:
     held = LoanFactory.build_batch(3)
 
-    with pytest.raises(MemberLimitReached):
+    with pytest.raises(MemberLimitReached, match="already has 3 active loans"):
         lend(active_of_member=held, max_active=3, active_of_book=1, copies=1)
 
 
@@ -116,7 +116,7 @@ def test_a_loan_can_be_returned_on_the_day_it_was_borrowed() -> None:
 def test_a_returned_loan_cannot_be_returned_again() -> None:
     loan = LoanFactory.build(returned_on=date(2026, 1, 8))
 
-    with pytest.raises(LoanAlreadyReturned):
+    with pytest.raises(LoanAlreadyReturned, match=f"Loan {loan.id} was already returned"):
         loan.give_back(date(2026, 1, 9))
 
 
