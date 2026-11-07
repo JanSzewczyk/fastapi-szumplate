@@ -4,6 +4,10 @@ The example keeps data in memory behind two ports: `BookRepository` (`library/bo
 and `LoanRepository` (`library/loans/domain/ports.py`). A database adapter implements the same
 Protocol and must pass the same contract suite. No service, route or schema changes.
 
+Until you have done this, run one worker and one replica: the repositories and the `RLock` that
+makes each rule atomic live in one process, so a second worker would have its own data and its
+own locks.
+
 ## 1. Write the adapter
 
 Create `library/books/sql_repository.py` and `library/loans/adapters/sql_repository.py`. They may
