@@ -18,11 +18,13 @@ def test_every_problem_type_is_in_the_reference(app: FastAPI) -> None:
 
 
 def test_readme_lists_every_make_target() -> None:
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8").replace("\\\n", " ")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    phony = re.search(r"^\.PHONY:(.*?)(?:\n\n|\Z)", makefile, re.DOTALL | re.MULTILINE)
-    assert phony
-    targets = phony.group(1).replace("\\", " ").split()
+    targets = [
+        target
+        for line in re.findall(r"^\.PHONY:(.*)$", makefile, re.MULTILINE)
+        for target in line.split("#")[0].split()
+    ]
 
     assert targets
     for target in targets:

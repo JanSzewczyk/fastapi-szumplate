@@ -1,5 +1,6 @@
 .PHONY: install hooks format lint typecheck imports test check run openapi openapi-check api-lint \
 	api-breaking schemathesis api-check audit docker-build docker-run clean
+.PHONY: smoke-template  # only:template
 
 SPECTRAL := npx --yes @stoplight/spectral-cli@6.17.1
 OASDIFF_IMAGE := tufin/oasdiff:v1.35.0
@@ -80,6 +81,14 @@ docker-run:
 	docker run --rm -p 8000:8000 --read-only --tmpfs /tmp --env-file .env \
 		-e HOST=0.0.0.0 -e PORT=8000 fastapi-szumplate:local
 
+# begin:template
+# Builds projects from this template in a temp dir, with and without the example, and runs their
+# gates (uv sync --locked, make openapi, make check). Slow: it installs two environments.
+smoke-template:
+	scripts/smoke_template.sh
+	scripts/smoke_template.sh --rename-only
+
+# end:template
 clean:
 	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis .coverage requirements.txt $(BASE_SPEC)
 	find . -name __pycache__ -type d -prune -not -path "./.venv/*" -exec rm -rf {} +
