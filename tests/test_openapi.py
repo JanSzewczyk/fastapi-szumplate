@@ -9,7 +9,7 @@ from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
 
 from fastapi_szumplate.main import create_app
-from fastapi_szumplate.problems import PROBLEM_MEDIA_TYPE
+from fastapi_szumplate.problems import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR
 from tests.conftest import make_settings
 
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options"}
@@ -53,6 +53,7 @@ def test_no_framework_validation_schemas_are_published(spec: dict[str, Any]) -> 
     names = set(spec.get("components", {}).get("schemas", {}))
 
     assert not names & {"HTTPValidationError", "ValidationError"}
+    assert "ProblemDetail" in names
 
 
 def test_every_route_sets_an_explicit_snake_case_operation_id(app: FastAPI) -> None:
@@ -78,6 +79,24 @@ def test_every_route_with_input_documents_a_422(spec: dict[str, Any]) -> None:
     for method, path, operation in operations(spec):
         if operation.get("parameters") or operation.get("requestBody"):
             assert "422" in operation["responses"], f"{method} {path}"
+
+
+def test_every_registered_problem_type_is_documented_in_some_response(
+    app: FastAPI, spec: dict[str, Any]
+) -> None:
+    descriptions = " ".join(response["description"] for _, response in error_responses(spec))
+
+    takes_input = any(
+        op.get("parameters") or op.get("requestBody") for _, _, op in operations(spec)
+    )
+    expected = [
+        kind
+        for kind in app.state.problem_types
+        if takes_input or kind != VALIDATION_ERROR  # only routes with input can answer 422
+    ]
+    assert expected
+    for kind in expected:
+        assert f"`{kind.slug}`" in descriptions, kind.slug
 
 
 def test_every_operation_has_a_summary_and_tag(spec: dict[str, Any]) -> None:

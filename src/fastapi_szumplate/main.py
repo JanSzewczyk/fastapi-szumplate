@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from fastapi_szumplate.config import Settings
+from fastapi_szumplate.health.readiness import install_readiness
 from fastapi_szumplate.health.router import router as health_router
 from fastapi_szumplate.logging_config import configure_logging
 from fastapi_szumplate.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     add_problem_handlers(app)
     install_openapi(app)
+    install_readiness(app)
     app.include_router(health_router)
 
     # Starlette makes the last middleware added the outermost one.
