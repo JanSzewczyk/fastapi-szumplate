@@ -91,8 +91,8 @@ jobs:
           fi
           docker logs api
           docker stop api
-      # compose.yaml sets the read-only filesystem, dropped capabilities and the healthcheck that
-      # `docker run` above does not, so it is started and called on its own.
+      # compose.yaml drops every capability and sets no-new-privileges, which `docker run` above
+      # does not, so it is started and called on its own. `--wait` waits for the image HEALTHCHECK.
       - name: Start the compose service and call the health endpoint
         run: |
           docker compose config --quiet
