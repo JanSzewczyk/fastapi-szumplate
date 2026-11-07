@@ -241,8 +241,11 @@ def test_values_on_the_edge_of_the_limits_are_accepted(
         ("title", "\U0001f4da" * 201),
         ("title", None),
         ("title", 5),
+        ("title", " "),
+        ("title", " \t\n\u00a0"),
         ("author", "a" * 201),
         ("author", ""),
+        ("author", "   "),
         ("author", None),
         ("copies", 1001),
         ("copies", 0),
@@ -403,12 +406,24 @@ def test_an_update_cannot_change_the_isbn_or_the_capacity(api: TestClient, extra
         {},
         {"title": "", "author": "A"},
         {"title": "T", "author": ""},
+        {"title": " ", "author": "A"},
+        {"title": "T", "author": "  "},
         {"title": "t" * 201, "author": "A"},
         {"title": "T", "author": "a" * 201},
         {"title": None, "author": "A"},
         {"title": "T", "author": 5},
     ],
-    ids=["empty", "empty-title", "empty-author", "title-201", "author-201", "null", "number"],
+    ids=[
+        "empty",
+        "empty-title",
+        "empty-author",
+        "blank-title",
+        "blank-author",
+        "title-201",
+        "author-201",
+        "null",
+        "number",
+    ],
 )
 def test_an_invalid_update_is_a_422_and_changes_nothing(
     api: TestClient, payload: dict[str, Any]
@@ -419,6 +434,18 @@ def test_an_invalid_update_is_a_422_and_changes_nothing(
 
     assert response.status_code == 422
     assert api.get(f"/v1/books/{book['id']}").json() == book
+
+
+def test_surrounding_whitespace_is_dropped_from_a_title_and_an_author(api: TestClient) -> None:
+    created = create_book(api, title="  Clean Code\n", author="\tR. Martin ")
+
+    updated = api.put(
+        f"/v1/books/{created['id']}", json={"title": " New \t", "author": "  Someone "}
+    ).json()
+
+    assert (created["title"], created["author"]) == ("Clean Code", "R. Martin")
+    assert (updated["title"], updated["author"]) == ("New", "Someone")
+    assert api.get(f"/v1/books/{created['id']}").json() == updated
 
 
 def test_validation_is_reported_before_the_book_is_looked_up(api: TestClient) -> None:

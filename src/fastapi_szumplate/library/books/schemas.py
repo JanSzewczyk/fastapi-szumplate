@@ -3,7 +3,7 @@
 from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from fastapi_szumplate.library.books.models import Book
 from fastapi_szumplate.pagination import Page
@@ -17,18 +17,17 @@ Isbn = Annotated[
         examples=["9780132350884"],
     ),
 ]
+# Surrounding whitespace is dropped before the checks, so " " is not a title. The pattern states
+# "at least one non-blank character" in the spec too: min_length alone would publish " " as valid.
 Title = Annotated[
     str,
-    Field(min_length=1, max_length=200, description="Title of the book.", examples=["Clean Code"]),
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"\S"),
+    Field(description="Title of the book.", examples=["Clean Code"]),
 ]
 Author = Annotated[
     str,
-    Field(
-        min_length=1,
-        max_length=200,
-        description="Author of the book.",
-        examples=["Robert C. Martin"],
-    ),
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"\S"),
+    Field(description="Author of the book.", examples=["Robert C. Martin"]),
 ]
 
 

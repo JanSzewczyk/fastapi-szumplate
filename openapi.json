@@ -12,6 +12,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Author",
             "type": "string"
           },
@@ -41,6 +42,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Title",
             "type": "string"
           }
@@ -112,6 +114,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Author",
             "type": "string"
           },
@@ -148,6 +151,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Title",
             "type": "string"
           }
@@ -173,6 +177,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Author",
             "type": "string"
           },
@@ -183,6 +188,7 @@
             ],
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Title",
             "type": "string"
           }
