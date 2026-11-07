@@ -63,7 +63,7 @@ def test_whole_numbers_are_accepted_also_as_floats(value: float, expected: int) 
     assert Counted.model_validate({"count": value}).count == expected
 
 
-@pytest.mark.parametrize("value", ["3", 3.5, True, None, float("inf"), float("nan")], ids=lambda v: repr(v))
+@pytest.mark.parametrize("value", ["3", 3.5, True, None, float("inf"), float("nan")], ids=repr)
 def test_strings_fractions_and_booleans_are_not_whole_numbers(value: object) -> None:
     with pytest.raises(ValidationError, match="whole number"):
         Counted.model_validate({"count": value})

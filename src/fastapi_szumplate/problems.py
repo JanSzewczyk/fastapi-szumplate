@@ -221,11 +221,12 @@ async def _http_exception_handler(request: Request, exc: Exception) -> Response:
         allowed = _allowed_methods(request)
         if allowed:
             headers["Allow"] = ", ".join(allowed)
+    detail: object = http_exc.detail  # Starlette types it `str`; FastAPI's subclass accepts anything
     return problem(
         request,
         status=http_exc.status_code,
         title=_status_title(http_exc.status_code),
-        detail=http_exc.detail if isinstance(http_exc.detail, str) else None,
+        detail=detail if isinstance(detail, str) else None,
         headers=headers,
     )
 

@@ -24,8 +24,8 @@ Replace `fastapi_szumplate` with your package name.
    `.env.example` delete `LOANS_MAX_ACTIVE_PER_MEMBER` and `LOAN_DAYS`. Keep `default_page_size`;
    `pagination.py` uses it.
 4. In `pyproject.toml`, under `[tool.importlinter]`, delete every contract that mentions
-   `.library`. Keep "Nothing in the core imports the application factory": import-linter
-   fails when a project has no contracts.
+   `.library`. Keep the core contracts ("The core is layered: …" and "Only the entry point
+   imports the web server"): they guard the core, and import-linter fails without contracts.
 5. Regenerate the spec and run the checks:
 
    ```bash

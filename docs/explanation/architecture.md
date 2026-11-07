@@ -34,6 +34,11 @@ domain imports no web framework, no ORM, no adapter. Only `dependencies.py` and 
 wires the app (`main.py`) import adapters. Modules refer to one another by id and never import
 each other's models. `make imports` enforces the contracts in `pyproject.toml`.
 
+The core has layers of its own: `__main__` (the only module that imports uvicorn), then the
+factory `main.py`, then the features (`health`, `middleware`, `openapi`, `logging_config`,
+`pagination`), then the foundations (`problems`, `config`, `query`, `types`). A layer imports only
+the layers below it. A new core module joins the contract in the layer it belongs to.
+
 <!-- begin:example -->
 Only `dependencies.py`, `library/__init__.py` and `main.py` import adapters. `loans` asks `books`
 for one number (the capacity) through `loans/adapters/books_catalog.py`.
