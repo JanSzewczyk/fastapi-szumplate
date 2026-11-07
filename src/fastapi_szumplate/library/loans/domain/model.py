@@ -65,7 +65,11 @@ class Loan:
         )
 
     def give_back(self, returned_on: date) -> Self:
-        """Return the loan on the given date, or raise the rule it breaks."""
+        """Return the loan on the given date, or raise the rule it breaks.
+
+        A loan that was already returned is refused first, whatever the date; only a loan still
+        out is checked against the borrow date.
+        """
         if self.returned_on is not None:
             raise LoanAlreadyReturned(self.id)
         if returned_on < self.borrowed_on:

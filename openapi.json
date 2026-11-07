@@ -1154,7 +1154,7 @@
     },
     "/v1/loans/{loan_id}/return": {
       "post": {
-        "description": "Mark a loan as returned.\n\nSend no body to return it today, or a `returned_on` date. A loan can be returned once, and not\nbefore the day it was borrowed.",
+        "description": "Mark a loan as returned.\n\nSend no body to return it today, or a `returned_on` date. A loan can be returned once, and not\nbefore the day it was borrowed. A loan that was already returned is refused first\n(`loan-already-returned`), whatever `returned_on` says; only a loan still out is checked\nagainst the borrow date (`returned-before-borrowed`).",
         "operationId": "return_loan",
         "parameters": [
           {

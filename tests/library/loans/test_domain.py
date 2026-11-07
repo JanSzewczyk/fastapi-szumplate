@@ -120,6 +120,13 @@ def test_a_returned_loan_cannot_be_returned_again() -> None:
         loan.give_back(date(2026, 1, 9))
 
 
+def test_already_returned_wins_over_a_return_date_before_the_borrow_date() -> None:
+    loan = LoanFactory.build(borrowed_on=date(2026, 1, 6), returned_on=date(2026, 1, 8))
+
+    with pytest.raises(LoanAlreadyReturned, match=f"Loan {loan.id} was already returned"):
+        loan.give_back(date(2026, 1, 1))
+
+
 def test_return_before_the_borrow_date_is_refused() -> None:
     loan = LoanFactory.build(borrowed_on=date(2026, 1, 6))
 

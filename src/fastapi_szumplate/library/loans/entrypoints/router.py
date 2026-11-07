@@ -121,7 +121,9 @@ def return_loan(loan_id: LoanId, service: Service, body: LoanReturn | None = Non
     """Mark a loan as returned.
 
     Send no body to return it today, or a `returned_on` date. A loan can be returned once, and not
-    before the day it was borrowed.
+    before the day it was borrowed. A loan that was already returned is refused first
+    (`loan-already-returned`), whatever `returned_on` says; only a loan still out is checked
+    against the borrow date (`returned-before-borrowed`).
     """
     returned_on = body.returned_on if body else None
     return LoanResponse.from_domain(service.give_back(loan_id, returned_on=returned_on))
