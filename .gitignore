@@ -6,7 +6,6 @@ __pycache__/
 .pytest_cache/
 .hypothesis/
 .coverage
-requirements.txt
 .idea/
 .coverage.*
 htmlcov/

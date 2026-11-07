@@ -1,21 +1,10 @@
-.git
-.github
-.venv
-.env
-.env.*
-!.env.example
-__pycache__
-*.pyc
-.mypy_cache
-.pytest_cache
-.ruff_cache
-.hypothesis
-.schemathesis
-.coverage
-.openapi-base.json
-requirements.txt
-tests
-docs
-scripts
-Dockerfile
-compose.yaml
+# An allowlist: the build context is only what the image needs, so nothing else can leak in or
+# invalidate the cached layers.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src
+**/__pycache__
+**/*.pyc

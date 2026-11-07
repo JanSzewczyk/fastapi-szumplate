@@ -71,4 +71,18 @@ All notable changes to this project are recorded here. The format follows
 - Packaging: `license = "MIT"` with the licence file in the wheel, a `Private :: Do Not Upload`
   classifier, a `fastapi-szumplate` console script, a bounded hatchling and a minimum uv version.
   Coverage also measures `scripts/`.
+- CI: actions pinned to commit hashes, runs on pushes to `main`, pull requests and on demand (a
+  pull request commit is no longer tested twice), the weekly run no longer cancels a push run,
+  jobs have timeouts and checkouts keep no credentials. The image job builds with Buildx and the
+  GitHub Actions cache and waits for the image's own HEALTHCHECK to report `healthy`; the check
+  job writes the coverage table to the job summary.
+- The image: the build context is an allowlist, `LICENSE` reaches the package metadata, the
+  virtual environment is owned by root, the user is numeric (`10001:10001`) and the health check
+  probes every 2 s while the container starts. `compose.yaml` uses the image's health check.
+- Dependabot waits 7 days after a release, writes Conventional Commit messages and opens major
+  updates on their own.
+- `make audit` covers every dependency group, pins pip-audit and writes no `requirements.txt`;
+  `make clean` removes every cache.
+- `run_schemathesis.sh` refuses a port that is already in use and cleans up its log;
+  `init_project.py` leaves `.claude/` alone and reminds you of the `LICENSE` holder.
 <!-- end:template -->
