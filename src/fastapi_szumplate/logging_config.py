@@ -1,0 +1,106 @@
+"""Structured logging: structlog on top of stdlib logging, configured once at the entry point."""
+
+import logging
+import sys
+from collections.abc import MutableMapping
+from typing import Any, Final
+
+import structlog
+from structlog.types import EventDict, Processor
+
+from fastapi_szumplate.config import Settings
+
+SENSITIVE_PARTS: Final = ("password", "token", "authorization", "api_key", "secret", "cookie")
+REDACTED: Final = "***"
+_HANDLER_TAG: Final = "_fastapi_szumplate_handler"
+
+
+class _StdoutHandler(logging.StreamHandler[Any]):
+    """Stream handler that looks `sys.stdout` up on every emit, so a swapped stream still works."""
+
+    def __init__(self) -> None:
+        logging.Handler.__init__(self)
+
+    @property
+    def stream(self) -> Any:
+        """Return the current `sys.stdout`."""
+        return sys.stdout
+
+    @stream.setter
+    def stream(self, value: Any) -> None:
+        """Ignore assignment: the stream is always the live `sys.stdout`."""
+
+
+def _redact_value(value: Any) -> Any:
+    if isinstance(value, MutableMapping):
+        return {key: _redact_entry(key, item) for key, item in value.items()}
+    return value
+
+
+def _redact_entry(key: object, value: Any) -> Any:
+    if isinstance(key, str) and any(part in key.lower() for part in SENSITIVE_PARTS):
+        return REDACTED
+    return _redact_value(value)
+
+
+def redact(_logger: object, _method: str, event_dict: EventDict) -> EventDict:
+    """Mask the value of every key that looks sensitive, also inside nested mappings.
+
+    This is defence in depth: a secret inside a message, a value or a traceback still leaks.
+    """
+    for key in list(event_dict):
+        event_dict[key] = _redact_entry(key, event_dict[key])
+    return event_dict
+
+
+def configure_logging(settings: Settings) -> None:
+    """Route structlog and stdlib records through one pipeline to stdout.
+
+    Safe to call repeatedly: it replaces only the handler it installed earlier.
+    """
+    shared: list[Processor] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        redact,
+    ]
+    renderer: Processor
+    if settings.resolved_log_format == "json":
+        renderer = structlog.processors.JSONRenderer()
+        final: list[Processor] = [structlog.processors.dict_tracebacks]
+    else:
+        renderer = structlog.dev.ConsoleRenderer(colors=sys.stdout.isatty())
+        final = []
+
+    structlog.configure(
+        processors=[*shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=False,
+    )
+
+    handler = _StdoutHandler()
+    setattr(handler, _HANDLER_TAG, True)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=shared,
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                *final,
+                renderer,
+            ],
+        )
+    )
+
+    root = logging.getLogger()
+    for existing in [h for h in root.handlers if getattr(h, _HANDLER_TAG, False)]:
+        root.removeHandler(existing)
+    root.addHandler(handler)
+    root.setLevel(settings.log_level)
+
+    # uvicorn's own loggers feed the root pipeline; its access log is replaced by our middleware.
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        uvicorn_logger = logging.getLogger(name)
+        uvicorn_logger.handlers.clear()
+        uvicorn_logger.propagate = True
