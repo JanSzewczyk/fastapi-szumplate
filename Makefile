@@ -1,5 +1,5 @@
 .PHONY: install format lint typecheck imports test check run openapi openapi-check api-lint \
-	api-breaking schemathesis api-check audit clean
+	api-breaking schemathesis api-check audit docker-build docker-run clean
 
 SPECTRAL := npx --yes @stoplight/spectral-cli@6.17.1
 OASDIFF_IMAGE := tufin/oasdiff:v1.35.0
@@ -68,6 +68,14 @@ api-check: openapi-check api-lint api-breaking schemathesis
 audit:
 	uv export --locked --no-emit-project -o requirements.txt
 	uvx pip-audit -r requirements.txt --disable-pip
+
+docker-build:
+	docker build -t fastapi-szumplate:local .
+
+# Needs a .env (cp .env.example .env). HOST and PORT are forced: the server must listen on 0.0.0.0.
+docker-run:
+	docker run --rm -p 8000:8000 --read-only --tmpfs /tmp --env-file .env \
+		-e HOST=0.0.0.0 -e PORT=8000 fastapi-szumplate:local
 
 clean:
 	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis .coverage requirements.txt $(BASE_SPEC)
