@@ -31,6 +31,7 @@ dev = [
 ]
 test = [
     "coverage>=7.17.2",
+    "factory-boy>=3.3.3",
     "httpx2>=2.16.0",
     "hypothesis>=6.170.15",
     "pytest>=9.2.0",

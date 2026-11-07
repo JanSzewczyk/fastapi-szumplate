@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from fastapi_szumplate.config import Settings
 from fastapi_szumplate.health.readiness import install_readiness
 from fastapi_szumplate.health.router import router as health_router
+from fastapi_szumplate.library import include_library
 from fastapi_szumplate.logging_config import configure_logging
 from fastapi_szumplate.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
 from fastapi_szumplate.openapi import HEALTH_TAG, METADATA, install_openapi
@@ -37,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_openapi(app)
     install_readiness(app)
     app.include_router(health_router)
+    include_library(app)  # the example domain; remove this line and the import to drop it
 
     # Starlette makes the last middleware added the outermost one.
     if settings.cors_origins:
