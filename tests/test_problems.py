@@ -19,6 +19,7 @@ from fastapi_szumplate.problems import (
 from tests.conftest import make_settings
 
 PROBLEM_JSON = PROBLEM_MEDIA_TYPE
+JSON = {"Content-Type": "application/json"}
 
 
 class Payload(BaseModel):
@@ -222,6 +223,19 @@ async def _no_receive() -> Message:
 
 async def _no_send(_message: Message) -> None:
     return None
+
+
+def test_json_with_an_integer_beyond_the_parser_limit_is_a_422_but_invalid_utf8_stays_400(
+    probe: TestClient,
+) -> None:
+    long_integer = b'{"name": ' + b"9" * 5000 + b"}"
+
+    too_long = probe.post("/probe/body", content=long_integer, headers=JSON)
+    not_text = probe.post("/probe/body", content=b'{"name": "\xff"}', headers=JSON)
+
+    assert (too_long.status_code, too_long.json()["errors"][0]["loc"]) == (422, ["body"])
+    assert "9999" not in too_long.text
+    assert not_text.status_code == 400
 
 
 def test_a_failure_in_the_outermost_middleware_is_still_a_500_problem() -> None:

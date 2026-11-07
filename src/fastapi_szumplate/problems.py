@@ -172,8 +172,39 @@ def _allowed_methods(request: Request) -> list[str]:
     return sorted(methods)
 
 
+def _validation_problem(request: Request, issues: list[ValidationIssue]) -> JSONResponse:
+    return problem(
+        request,
+        status=VALIDATION_ERROR.status,
+        title=VALIDATION_ERROR.title,
+        detail="One or more inputs are invalid.",
+        type_=VALIDATION_ERROR.type,
+        errors=issues,
+    )
+
+
+def _is_unreadable_json_value(exc: StarletteHTTPException) -> bool:
+    """Tell FastAPI's 400 for a JSON number it cannot parse from its 400 for undecodable bytes.
+
+    FastAPI answers 400 for any non-`JSONDecodeError` raised while it parses a body. For valid
+    JSON that is a plain `ValueError` from `json` (an integer of more than 4300 digits); invalid
+    UTF-8 is a `UnicodeDecodeError`, which stays a 400 because the bytes are not text.
+    """
+    cause = exc.__cause__
+    return (
+        exc.status_code == HTTPStatus.BAD_REQUEST
+        and isinstance(cause, ValueError)
+        and not isinstance(cause, UnicodeDecodeError)
+    )
+
+
 async def _http_exception_handler(request: Request, exc: Exception) -> Response:
     http_exc = cast("StarletteHTTPException", exc)
+    if _is_unreadable_json_value(http_exc):
+        issue = ValidationIssue(
+            loc=["body"], msg="JSON contains an integer with too many digits", type="json_invalid"
+        )
+        return _validation_problem(request, [issue])
     headers = dict(http_exc.headers or {})
     if http_exc.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
         allowed = _allowed_methods(request)
@@ -194,14 +225,7 @@ async def _validation_exception_handler(request: Request, exc: Exception) -> Res
         ValidationIssue(loc=list(e["loc"]), msg=e["msg"], type=e["type"])
         for e in validation_exc.errors()
     ]
-    return problem(
-        request,
-        status=VALIDATION_ERROR.status,
-        title=VALIDATION_ERROR.title,
-        detail="One or more inputs are invalid.",
-        type_=VALIDATION_ERROR.type,
-        errors=issues,
-    )
+    return _validation_problem(request, issues)
 
 
 def unhandled_problem(request: Request) -> JSONResponse:
