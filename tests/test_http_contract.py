@@ -1,4 +1,4 @@
-"""The HTTP contract of the template core, proved without any domain module.
+"""The HTTP contract of the core, proved without any domain module.
 
 Every case uses `/health`, `/health/ready` and the probe routes of `tests/probes.py`, so this file
 passes unchanged when the example domain is removed. A case that needs a domain module's routes
