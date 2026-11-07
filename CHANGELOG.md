@@ -33,6 +33,8 @@ All notable changes to this template are recorded here. The format follows
 - A 500 now carries the `X-Request-ID` header and the CORS headers: the catch-all moved from
   Starlette's outermost middleware into `UnhandledErrorMiddleware`, and the traceback is logged
   once, on the `request_completed` line.
+- The ISBN pattern is `^[0-9]{13}$`: non-ASCII digits (Arabic-Indic, fullwidth) were accepted
+  because the regex engine reads `\d` as any Unicode digit, so one ISBN could be stored twice.
 
 ### Changed
 

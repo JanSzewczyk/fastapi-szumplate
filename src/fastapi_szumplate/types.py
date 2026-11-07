@@ -6,7 +6,7 @@ from typing import Annotated, Any, Final
 
 from pydantic import AwareDatetime, BeforeValidator
 
-_ISO_DATE: Final = re.compile(r"\d{4}-\d{2}-\d{2}")
+_ISO_DATE: Final = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 def _iso_date_only(value: Any) -> Any:

@@ -12,7 +12,7 @@ from fastapi_szumplate.types import WholeNumber
 Isbn = Annotated[
     str,
     Field(
-        pattern=r"^\d{13}$",
+        pattern=r"^[0-9]{13}$",  # not \d: Pydantic's regex engine reads \d as any Unicode digit
         description="ISBN-13, thirteen digits without hyphens. Unique across the catalogue.",
         examples=["9780132350884"],
     ),
