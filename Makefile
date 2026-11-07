@@ -1,4 +1,9 @@
-.PHONY: install format lint typecheck test check run audit
+.PHONY: install format lint typecheck imports test check run openapi openapi-check api-lint \
+	api-breaking schemathesis api-check audit clean
+
+SPECTRAL := npx --yes @stoplight/spectral-cli@6.17.1
+OASDIFF_IMAGE := tufin/oasdiff:v1.35.0
+BASE_SPEC := .openapi-base.json
 
 install:
 	uv sync --locked
@@ -12,19 +17,58 @@ lint:
 typecheck:
 	uv run mypy
 
+imports:
+	uv run lint-imports
+
 test:
 	uv run pytest
 
+# The one command CI runs: format, lint, types, import contracts, tests with coverage, spec drift.
 check:
 	uv run ruff format --check .
 	uv run ruff check .
 	uv run mypy
+	uv run lint-imports
 	uv run coverage run -m pytest
 	uv run coverage report
+	$(MAKE) openapi-check
 
 run:
 	uv run python -m fastapi_szumplate
 
+# openapi.json is generated from the app; never edit it by hand.
+openapi:
+	uv run python scripts/export_openapi.py
+
+openapi-check:
+	uv run python scripts/export_openapi.py --check
+
+api-lint:
+	$(SPECTRAL) lint openapi.json --fail-severity=warn
+
+# Compare with the spec on origin/main; breaking changes (errors) fail. Needs oasdiff or Docker.
+api-breaking:
+	@if ! git cat-file -e origin/main:openapi.json 2>/dev/null; then \
+		echo "origin/main has no openapi.json yet; skipping the breaking-change check."; exit 0; \
+	fi; \
+	git show origin/main:openapi.json > $(BASE_SPEC); \
+	if command -v oasdiff >/dev/null 2>&1; then \
+		oasdiff breaking $(BASE_SPEC) openapi.json --fail-on ERR; \
+	else \
+		docker run --rm -v "$(CURDIR):/spec:ro" $(OASDIFF_IMAGE) \
+			breaking /spec/$(BASE_SPEC) /spec/openapi.json --fail-on ERR; \
+	fi
+
+# Starts the service, runs Schemathesis with every check and phase, stops the service.
+schemathesis:
+	scripts/run_schemathesis.sh
+
+api-check: openapi-check api-lint api-breaking schemathesis
+
 audit:
 	uv export --locked --no-emit-project -o requirements.txt
 	uvx pip-audit -r requirements.txt --disable-pip
+
+clean:
+	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis .coverage requirements.txt $(BASE_SPEC)
+	find . -name __pycache__ -type d -prune -not -path "./.venv/*" -exec rm -rf {} +

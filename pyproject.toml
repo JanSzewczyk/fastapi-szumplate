@@ -50,7 +50,7 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["fastapi_szumplate", "tests"]
+known-first-party = ["fastapi_szumplate", "tests", "scripts"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -82,4 +82,65 @@ source = ["fastapi_szumplate"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 90
+fail_under = 95
+
+[tool.importlinter]
+root_package = "fastapi_szumplate"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The template core never imports the example domain"
+type = "forbidden"
+source_modules = [
+    "fastapi_szumplate.config",
+    "fastapi_szumplate.health",
+    "fastapi_szumplate.logging_config",
+    "fastapi_szumplate.middleware",
+    "fastapi_szumplate.openapi",
+    "fastapi_szumplate.pagination",
+    "fastapi_szumplate.problems",
+    "fastapi_szumplate.types",
+]
+forbidden_modules = ["fastapi_szumplate.library"]
+
+[[tool.importlinter.contracts]]
+name = "Loans domain imports the standard library only"
+type = "forbidden"
+source_modules = ["fastapi_szumplate.library.loans.domain"]
+forbidden_modules = [
+    "fastapi",
+    "pydantic",
+    "pydantic_settings",
+    "starlette",
+    "structlog",
+    "fastapi_szumplate.problems",
+    "fastapi_szumplate.config",
+    "fastapi_szumplate.pagination",
+]
+
+[[tool.importlinter.contracts]]
+name = "Loans layers point toward the domain"
+type = "layers"
+layers = [
+    "fastapi_szumplate.library.loans.entrypoints",
+    "fastapi_szumplate.library.loans.service_layer | fastapi_szumplate.library.loans.adapters",
+    "fastapi_szumplate.library.loans.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Books layers point toward the models"
+type = "layers"
+layers = [
+    "fastapi_szumplate.library.books.router",
+    "fastapi_szumplate.library.books.service",
+    "fastapi_szumplate.library.books.repository",
+    "fastapi_szumplate.library.books.models",
+]
+
+[[tool.importlinter.contracts]]
+name = "Books and loans meet only in the catalog adapter"
+type = "independence"
+modules = ["fastapi_szumplate.library.books", "fastapi_szumplate.library.loans"]
+ignore_imports = [
+    "fastapi_szumplate.library.loans.adapters.books_catalog -> fastapi_szumplate.library.books.repository",
+]
