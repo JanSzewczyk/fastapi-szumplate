@@ -23,7 +23,7 @@ All notable changes to this project are recorded here. The format follows
 - import-linter contracts for module boundaries.
 - OpenAPI links from the create operations to the get, update, lend and return operations, and a
   `schemathesis.toml`, so stateful Schemathesis reaches the operations that need an id.
-- Multi-stage Dockerfile, `compose.yaml`, pre-commit configuration and Dependabot.
+- Multi-stage Dockerfile, `compose.yaml` and Dependabot.
 - CI jobs for the contract tooling, the image, a template smoke test and an informational
   free-threaded Python run.
 - `scripts/init_project.py` to rename a copy and optionally remove the example.

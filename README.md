@@ -1,7 +1,7 @@
 # fastapi-szumplate
 
 A FastAPI service by Szum-Tech: typed settings, structured logging, one error
-format (Problem Details), a generated and checked OpenAPI contract, Docker, pre-commit and CI.
+format (Problem Details), a generated and checked OpenAPI contract, Docker and CI.
 Python 3.15, uv, Ruff, mypy (strict), pytest.
 
 <!-- begin:example -->
@@ -46,7 +46,6 @@ access log. If you must use the CLI, pass `--factory` (`uvicorn fastapi_szumplat
 | Command | Purpose |
 | --- | --- |
 | `make install` | Install locked dependencies (`uv sync --locked`) |
-| `make hooks` | Install the pre-commit hooks |
 | `make run` | Start the service (`python -m fastapi_szumplate`) |
 | `make format` | Ruff format |
 | `make lint` | Ruff lint |
