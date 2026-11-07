@@ -6,7 +6,7 @@ from typing import cast
 import structlog
 from fastapi import FastAPI, Request
 
-from fastapi_szumplate.problems import ProblemType, domain_error_handler, register_problem_types
+from fastapi_szumplate.problems import ProblemType, register_domain_errors
 
 type ReadinessCheck = Callable[[], None]
 
@@ -22,10 +22,7 @@ class ServiceNotReady(Exception):
 def install_readiness(app: FastAPI) -> None:
     """Create the empty check registry and map `ServiceNotReady` to its problem type."""
     app.state.readiness_checks = {}
-    app.add_exception_handler(
-        ServiceNotReady, domain_error_handler({ServiceNotReady: SERVICE_NOT_READY})
-    )
-    register_problem_types(app, SERVICE_NOT_READY)
+    register_domain_errors(app, {ServiceNotReady: SERVICE_NOT_READY})
 
 
 def register_readiness_check(app: FastAPI, name: str, check: ReadinessCheck) -> None:

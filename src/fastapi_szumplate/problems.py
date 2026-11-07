@@ -133,13 +133,21 @@ def domain_error_handler(
     """
 
     async def handle(request: Request, exc: Exception) -> Response:
-        kind = mapping[type(exc)]
+        kind = next(mapping[cls] for cls in type(exc).__mro__ if cls in mapping)
         log.warning("request_refused", problem=kind.slug, status=kind.status)
         return problem(
             request, status=kind.status, title=kind.title, detail=str(exc), type_=kind.type
         )
 
     return handle
+
+
+def register_domain_errors(app: FastAPI, mapping: Mapping[type[Exception], ProblemType]) -> None:
+    """Handle a domain's exceptions with one handler and record their problem types."""
+    handler = domain_error_handler(mapping)
+    for exception_type in mapping:
+        app.add_exception_handler(exception_type, handler)
+    register_problem_types(app, *dict.fromkeys(mapping.values()))
 
 
 def _allowed_methods(request: Request) -> list[str]:
