@@ -19,6 +19,8 @@ for people. Types are `urn:problem:fastapi-szumplate:<slug>`.
 <!-- begin:example -->
 Lending checks its rules in this order: `already-borrowed`, `member-limit-reached`,
 `no-free-copy`.
+Returning checks `loan-already-returned` before `returned-before-borrowed`, so a loan that was
+returned before is `loan-already-returned` whatever `returned_on` says.
 <!-- end:example -->
 
 Errors the framework raises use `type` `about:blank` and the HTTP status phrase as `title`:

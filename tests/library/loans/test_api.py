@@ -421,6 +421,18 @@ def test_a_return_the_day_before_the_borrow_day_is_refused_and_the_loan_stays_ou
     assert return_loan(api, loan, json={"returned_on": "2026-01-06"}).status_code == 200
 
 
+def test_a_second_return_dated_before_the_borrow_day_is_already_returned_not_returned_before(
+    api: TestClient,
+) -> None:
+    loan = borrow(api, add_book(api)).json()
+    assert return_loan(api, loan, json={"returned_on": "2026-01-08"}).status_code == 200
+
+    refused = return_loan(api, loan, json={"returned_on": "2026-01-05"})
+
+    assert refused.status_code == 409
+    assert refused.json()["type"] == f"{TYPE}loan-already-returned"
+
+
 def test_a_second_return_keeps_the_first_date(api: TestClient) -> None:
     loan = borrow(api, add_book(api)).json()
     return_loan(api, loan, json={"returned_on": "2026-01-08"})
