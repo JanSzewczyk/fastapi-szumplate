@@ -8,3 +8,9 @@ __pycache__/
 .coverage
 requirements.txt
 .idea/
+.coverage.*
+htmlcov/
+.env.*
+!.env.example
+*.pyc
+.DS_Store
