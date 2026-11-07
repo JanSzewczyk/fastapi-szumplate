@@ -1,10 +1,15 @@
+from pathlib import Path
+
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from fastapi_szumplate.config import Settings, get_settings
+from fastapi_szumplate.main import create_app
 from tests.conftest import make_settings
+
+ENV_EXAMPLE = Path(__file__).resolve().parent.parent / ".env.example"
 
 
 def test_defaults_are_safe_for_a_public_api() -> None:
@@ -13,6 +18,19 @@ def test_defaults_are_safe_for_a_public_api() -> None:
     assert settings.docs_enabled is False
     assert settings.cors_origins == []
     assert settings.log_level == "INFO"
+
+
+def test_a_copied_env_example_keeps_the_docs_off_in_production() -> None:
+    """`cp .env.example .env` is the documented first step; it must not publish /docs."""
+    settings = Settings(_env_file=ENV_EXAMPLE, environment="production")
+
+    assert settings.docs_enabled is False
+    assert TestClient(create_app(settings)).get("/docs").status_code == 404
+
+
+def test_env_example_states_the_defaults() -> None:
+    """The file says "the values below are the defaults unless noted"."""
+    assert Settings(_env_file=ENV_EXAMPLE) == Settings(_env_file=None)
 
 
 def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

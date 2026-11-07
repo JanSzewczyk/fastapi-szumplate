@@ -77,9 +77,11 @@ docker-build:
 	docker build -t fastapi-szumplate:local .
 
 # Needs a .env (cp .env.example .env). HOST and PORT are forced: the server must listen on 0.0.0.0.
+# ENVIRONMENT is forced too, as in compose.yaml: --env-file would otherwise replace the image's
+# `production` with the `local` of .env.example. -e wins over --env-file.
 docker-run:
 	docker run --rm -p 8000:8000 --read-only --tmpfs /tmp --env-file .env \
-		-e HOST=0.0.0.0 -e PORT=8000 fastapi-szumplate:local
+		-e HOST=0.0.0.0 -e PORT=8000 -e ENVIRONMENT=production fastapi-szumplate:local
 
 # begin:template
 # Builds projects from this template in a temp dir, with and without the example, and runs their
