@@ -40,11 +40,7 @@ def test_failed_check_is_a_503_problem_naming_the_check_not_the_error(
     assert body["type"] == "urn:problem:fastapi-szumplate:service-not-ready"
     assert body["detail"] == "Not ready: database"
     assert "hunter2" not in response.text
-    logged = [
-        json.loads(line)
-        for line in capsys.readouterr().out.splitlines()
-        if "readiness_check" in line
-    ]
+    logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if "readiness_check" in line]
     assert logged[0]["check"] == "database"
 
 

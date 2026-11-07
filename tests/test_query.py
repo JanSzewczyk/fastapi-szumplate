@@ -19,12 +19,8 @@ def test_a_scalar_parameter_given_twice_is_a_422_that_names_it(probe: TestClient
     assert body["errors"][0]["type"] == REPEATED_PARAMETER
 
 
-@pytest.mark.parametrize(
-    "query", ["limit=1&limit=2", "limit=2&limit=1", f"limit=1&limit={SECRET}"], ids=str
-)
-def test_the_order_of_the_values_does_not_matter_and_they_are_never_echoed(
-    probe: TestClient, query: str
-) -> None:
+@pytest.mark.parametrize("query", ["limit=1&limit=2", "limit=2&limit=1", f"limit=1&limit={SECRET}"], ids=str)
+def test_the_order_of_the_values_does_not_matter_and_they_are_never_echoed(probe: TestClient, query: str) -> None:
     """Without the check the last value wins, so the same request would mean two things."""
     response = probe.get(f"/probe/limit?{query}")
 

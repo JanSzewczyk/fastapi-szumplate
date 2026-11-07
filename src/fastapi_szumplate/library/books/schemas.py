@@ -74,9 +74,7 @@ class BookResponse(BaseModel):
     @classmethod
     def from_domain(cls, book: Book) -> Self:
         """Build the response from the domain object."""
-        return cls(
-            id=book.id, isbn=book.isbn, title=book.title, author=book.author, copies=book.copies
-        )
+        return cls(id=book.id, isbn=book.isbn, title=book.title, author=book.author, copies=book.copies)
 
 
 class BookPage(Page[BookResponse]):

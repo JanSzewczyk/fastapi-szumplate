@@ -44,18 +44,12 @@ class InMemoryLoanRepository:
     def active_for_member(self, member_id: str) -> list[Loan]:
         """Return the member's loans that are still out."""
         with self._lock:
-            return [
-                loan
-                for loan in self._loans.values()
-                if loan.member_id == member_id and loan.is_active
-            ]
+            return [loan for loan in self._loans.values() if loan.member_id == member_id and loan.is_active]
 
     def count_active_for_book(self, book_id: UUID) -> int:
         """Return how many copies of the book are out."""
         with self._lock:
-            return sum(
-                1 for loan in self._loans.values() if loan.book_id == book_id and loan.is_active
-            )
+            return sum(1 for loan in self._loans.values() if loan.book_id == book_id and loan.is_active)
 
     def list_loans(
         self, *, member_id: str | None, active: bool | None, limit: int, offset: int
@@ -65,7 +59,6 @@ class InMemoryLoanRepository:
             matching = [
                 loan
                 for loan in self._loans.values()
-                if (member_id is None or loan.member_id == member_id)
-                and (active is None or loan.is_active == active)
+                if (member_id is None or loan.member_id == member_id) and (active is None or loan.is_active == active)
             ]
         return matching[offset : offset + limit], len(matching)

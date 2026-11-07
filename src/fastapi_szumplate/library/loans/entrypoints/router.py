@@ -98,9 +98,7 @@ def list_loans(
     ] = None,
 ) -> LoanPage:
     """List loans, oldest first, one page at a time, optionally for one member or only active."""
-    loans, total = service.list_loans(
-        member_id=member_id, active=active, limit=page.limit, offset=page.offset
-    )
+    loans, total = service.list_loans(member_id=member_id, active=active, limit=page.limit, offset=page.offset)
     return LoanPage(
         items=[LoanResponse.from_domain(loan) for loan in loans],
         total=total,

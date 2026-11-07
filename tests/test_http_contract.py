@@ -84,9 +84,7 @@ def send_when_the_server_fails(client: TestClient, app: FastAPI) -> Response:
 ERROR_CASES = [
     pytest.param(send_unreadable_body, 400, "about:blank", "Bad Request", id="400-unreadable-body"),
     pytest.param(send_unknown_path, 404, "about:blank", "Not Found", id="404-unknown-path"),
-    pytest.param(
-        send_wrong_method, 405, "about:blank", "Method Not Allowed", id="405-wrong-method"
-    ),
+    pytest.param(send_wrong_method, 405, "about:blank", "Method Not Allowed", id="405-wrong-method"),
     pytest.param(
         send_domain_refusal,
         409,
@@ -163,9 +161,7 @@ def test_every_error_carries_the_request_id_in_the_header_and_the_body(
 def test_a_supplied_request_id_is_echoed_by_every_error(
     send: Sender, status: int, type_: str, title: str, probe_app: FastAPI
 ) -> None:
-    with TestClient(
-        probe_app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}
-    ) as client:
+    with TestClient(probe_app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}) as client:
         response = send(client, probe_app)
 
     assert response.headers.get("X-Request-ID") == "client-id-7"
@@ -182,9 +178,7 @@ def test_a_supplied_request_id_is_echoed_by_every_error(
     ],
     ids=["health", "ready", "probe", "probe-with-path-value"],
 )
-def test_successful_responses_carry_a_request_id_too(
-    probe: TestClient, path: str, expected: int
-) -> None:
+def test_successful_responses_carry_a_request_id_too(probe: TestClient, path: str, expected: int) -> None:
     response = probe.get(path)
 
     assert response.status_code == expected
@@ -202,9 +196,7 @@ def test_a_request_id_of_exactly_64_characters_is_echoed(client: TestClient) -> 
     [b"", b"id\twith\ttab", b"\xfc\xf1", b"a/b", b"a" * 65],
     ids=["empty", "tab", "non-ascii", "slash", "too-long"],
 )
-def test_an_unsafe_request_id_is_replaced_on_an_error_too(
-    client: TestClient, inbound: bytes
-) -> None:
+def test_an_unsafe_request_id_is_replaced_on_an_error_too(client: TestClient, inbound: bytes) -> None:
     response = client.get("/no/such/path", headers={b"X-Request-ID": inbound})
 
     header = response.headers["X-Request-ID"]
@@ -323,9 +315,7 @@ def test_the_health_payloads_are_exactly_the_documented_ones(client: TestClient)
     assert client.get("/health/ready").json() == {"status": "ready", "checks": {}}
 
 
-def test_a_failed_readiness_check_does_not_leak_into_other_routes(
-    probe_app: FastAPI, probe: TestClient
-) -> None:
+def test_a_failed_readiness_check_does_not_leak_into_other_routes(probe_app: FastAPI, probe: TestClient) -> None:
     def broken() -> None:
         raise ConnectionError("db password is hunter2")
 
@@ -383,9 +373,7 @@ class TestCors:
         [("/no/such/path", 404), ("/probe/limit?limit=1000", 422), ("/probe/boom", 500)],
         ids=["404", "422", "500"],
     )
-    def test_error_responses_carry_the_cors_headers(
-        self, cors: TestClient, path: str, status: int
-    ) -> None:
+    def test_error_responses_carry_the_cors_headers(self, cors: TestClient, path: str, status: int) -> None:
         response = cors.get(path, headers={"Origin": ORIGIN})
 
         assert response.status_code == status
@@ -393,9 +381,7 @@ class TestCors:
         assert "X-Request-ID" in response.headers["access-control-expose-headers"]
         assert response.headers["content-type"] == PROBLEM
 
-    def test_a_500_carries_the_cors_headers_and_the_request_id_together(
-        self, cors: TestClient
-    ) -> None:
+    def test_a_500_carries_the_cors_headers_and_the_request_id_together(self, cors: TestClient) -> None:
         response = cors.get("/probe/boom", headers={"Origin": ORIGIN})
 
         assert response.headers["access-control-allow-origin"] == ORIGIN
@@ -407,9 +393,7 @@ class TestCors:
         assert response.status_code == 200
         assert "access-control-allow-origin" not in response.headers
 
-    def test_a_preflight_allows_only_the_declared_methods_and_no_credentials(
-        self, cors: TestClient
-    ) -> None:
+    def test_a_preflight_allows_only_the_declared_methods_and_no_credentials(self, cors: TestClient) -> None:
         response = cors.options(
             "/probe/thing",
             headers={
@@ -443,9 +427,7 @@ class TestCors:
         assert response.status_code == 400
 
     @REFUSALS
-    def test_a_refused_preflight_is_a_problem_not_plain_text(
-        self, cors: TestClient, headers: dict[str, str]
-    ) -> None:
+    def test_a_refused_preflight_is_a_problem_not_plain_text(self, cors: TestClient, headers: dict[str, str]) -> None:
         """`info.description` promises that every error is Problem Details."""
         response = cors.options("/probe/thing", headers={"Origin": ORIGIN, **headers})
 

@@ -138,9 +138,7 @@ class LoanRepositoryContract:
         assert out_total == 2
         assert back == [loans[2]]
 
-    def test_repository_methods_can_be_called_inside_a_transaction(
-        self, repo: LoanRepository
-    ) -> None:
+    def test_repository_methods_can_be_called_inside_a_transaction(self, repo: LoanRepository) -> None:
         loan = LoanFactory.build()
 
         with repo.transaction():

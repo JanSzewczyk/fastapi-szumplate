@@ -76,6 +76,4 @@ class LoanService:
         self, *, member_id: str | None, active: bool | None, limit: int, offset: int
     ) -> tuple[list[Loan], int]:
         """Return one page of loans matching the filters, and the match count."""
-        return self._loans.list_loans(
-            member_id=member_id, active=active, limit=limit, offset=offset
-        )
+        return self._loans.list_loans(member_id=member_id, active=active, limit=limit, offset=offset)

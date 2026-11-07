@@ -51,9 +51,7 @@ def loans(app: FastAPI) -> LoanRepository:
 
 
 def add_book(app: FastAPI, number: int, *, copies: int = 1) -> str:
-    response = TestClient(app).post(
-        "/v1/books", json=book_payload(isbn=isbn_for(number), copies=copies)
-    )
+    response = TestClient(app).post("/v1/books", json=book_payload(isbn=isbn_for(number), copies=copies))
     return str(response.json()["id"])
 
 
@@ -71,15 +69,11 @@ def in_parallel(app: FastAPI, calls: list[Callable[[TestClient], Any]]) -> list[
 
 
 def lend(book_id: str, member_id: str) -> Callable[[TestClient], Any]:
-    return lambda client: client.post(
-        "/v1/loans", json={"book_id": book_id, "member_id": member_id}
-    )
+    return lambda client: client.post("/v1/loans", json={"book_id": book_id, "member_id": member_id})
 
 
 @ROUNDS
-def test_the_last_copy_goes_to_one_of_eight_members(
-    app: FastAPI, loans: LoanRepository, attempt: int
-) -> None:
+def test_the_last_copy_goes_to_one_of_eight_members(app: FastAPI, loans: LoanRepository, attempt: int) -> None:
     book_id = add_book(app, 1, copies=1)
 
     responses = in_parallel(app, [lend(book_id, f"member-{n}") for n in range(PARALLEL)])
@@ -98,9 +92,7 @@ def test_one_member_cannot_exceed_the_limit_with_eight_parallel_loans(
     responses = in_parallel(app, [lend(book_id, "member-1") for book_id in books])
 
     assert sorted(r.status_code for r in responses) == [201] * 3 + [409] * (PARALLEL - 3)
-    assert {r.json()["type"] for r in responses if r.status_code == 409} == {
-        f"{TYPE}member-limit-reached"
-    }
+    assert {r.json()["type"] for r in responses if r.status_code == 409} == {f"{TYPE}member-limit-reached"}
     assert len(loans.active_for_member("member-1")) == 3
 
 
@@ -113,31 +105,19 @@ def test_the_same_member_and_book_in_eight_parallel_requests_make_one_loan(
     responses = in_parallel(app, [lend(book_id, "member-1") for _ in range(PARALLEL)])
 
     assert sorted(r.status_code for r in responses) == [201] + [409] * (PARALLEL - 1)
-    assert {r.json()["type"] for r in responses if r.status_code == 409} == {
-        f"{TYPE}already-borrowed"
-    }
+    assert {r.json()["type"] for r in responses if r.status_code == 409} == {f"{TYPE}already-borrowed"}
     assert len(loans.active_for_member("member-1")) == 1
 
 
 @ROUNDS
-def test_a_loan_is_returned_once_in_eight_parallel_returns(
-    app: FastAPI, loans: LoanRepository, attempt: int
-) -> None:
+def test_a_loan_is_returned_once_in_eight_parallel_returns(app: FastAPI, loans: LoanRepository, attempt: int) -> None:
     book_id = add_book(app, 1)
-    loan_id = (
-        TestClient(app)
-        .post("/v1/loans", json={"book_id": book_id, "member_id": "member-1"})
-        .json()["id"]
-    )
+    loan_id = TestClient(app).post("/v1/loans", json={"book_id": book_id, "member_id": "member-1"}).json()["id"]
 
-    responses = in_parallel(
-        app, [lambda client: client.post(f"/v1/loans/{loan_id}/return")] * PARALLEL
-    )
+    responses = in_parallel(app, [lambda client: client.post(f"/v1/loans/{loan_id}/return")] * PARALLEL)
 
     assert sorted(r.status_code for r in responses) == [200] + [409] * (PARALLEL - 1)
-    assert {r.json()["type"] for r in responses if r.status_code == 409} == {
-        f"{TYPE}loan-already-returned"
-    }
+    assert {r.json()["type"] for r in responses if r.status_code == 409} == {f"{TYPE}loan-already-returned"}
     assert loans.count_active_for_book(UUID(book_id)) == 0
 
 
@@ -147,19 +127,13 @@ def test_parallel_lendings_of_two_scarce_books_never_oversell_either(
 ) -> None:
     first = add_book(app, 1, copies=2)
     second = add_book(app, 2, copies=3)
-    calls = [lend(first, f"a-{n}") for n in range(PARALLEL)] + [
-        lend(second, f"b-{n}") for n in range(PARALLEL)
-    ]
+    calls = [lend(first, f"a-{n}") for n in range(PARALLEL)] + [lend(second, f"b-{n}") for n in range(PARALLEL)]
 
     responses = in_parallel(app, calls)
 
     by_book = {first: 2, second: 3}
     for book_id, copies in by_book.items():
-        outcomes = [
-            r.status_code
-            for r in responses
-            if r.status_code == 201 and r.json()["book_id"] == book_id
-        ]
+        outcomes = [r.status_code for r in responses if r.status_code == 201 and r.json()["book_id"] == book_id]
         assert len(outcomes) == copies
         assert loans.count_active_for_book(UUID(book_id)) == copies
     assert sorted(r.status_code for r in responses) == [201] * 5 + [409] * (2 * PARALLEL - 5)

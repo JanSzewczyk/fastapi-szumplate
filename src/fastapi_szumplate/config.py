@@ -49,9 +49,7 @@ class Settings(BaseSettings):
     loans_max_active_per_member: int = Field(
         default=3, ge=1, description="Example domain: active loans one member may hold."
     )
-    loan_days: int = Field(
-        default=14, ge=1, description="Example domain: days between borrowing and the due date."
-    )
+    loan_days: int = Field(default=14, ge=1, description="Example domain: days between borrowing and the due date.")
 
     @property
     def resolved_log_format(self) -> Literal["json", "console"]:

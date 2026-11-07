@@ -114,9 +114,7 @@ def send_invalid_query(client: TestClient, app: FastAPI) -> Response:
 
 
 ERROR_CASES = [
-    pytest.param(
-        send_unknown_book, 404, f"{TYPE}book-not-found", "Book not found", id="404-get-book"
-    ),
+    pytest.param(send_unknown_book, 404, f"{TYPE}book-not-found", "Book not found", id="404-get-book"),
     pytest.param(
         send_update_of_unknown_book,
         404,
@@ -131,9 +129,7 @@ ERROR_CASES = [
         "Book not found",
         id="404-lend-unknown-book",
     ),
-    pytest.param(
-        send_unknown_loan, 404, f"{TYPE}loan-not-found", "Loan not found", id="404-get-loan"
-    ),
+    pytest.param(send_unknown_loan, 404, f"{TYPE}loan-not-found", "Loan not found", id="404-get-loan"),
     pytest.param(
         send_return_of_unknown_loan,
         404,
@@ -162,9 +158,7 @@ ERROR_CASES = [
         "Member loan limit reached",
         id="409-member-limit-reached",
     ),
-    pytest.param(
-        send_no_free_copy, 409, f"{TYPE}no-free-copy", "No free copy", id="409-no-free-copy"
-    ),
+    pytest.param(send_no_free_copy, 409, f"{TYPE}no-free-copy", "No free copy", id="409-no-free-copy"),
     pytest.param(
         send_second_return,
         409,
@@ -229,9 +223,7 @@ def test_a_supplied_request_id_is_echoed_by_every_error(
     send: Sender, status: int, type_: str, title: str, app: FastAPI
 ) -> None:
     """Defect 1 is the 500 case: the header is missing although the body carries the id."""
-    with TestClient(
-        app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}
-    ) as client:
+    with TestClient(app, raise_server_exceptions=False, headers={"X-Request-ID": "client-id-7"}) as client:
         response = send(client, app)
 
     assert response.headers.get("X-Request-ID") == "client-id-7"
@@ -247,9 +239,7 @@ def test_a_supplied_request_id_is_echoed_by_every_error(
     ],
     ids=["list-books", "list-loans", "create-book"],
 )
-def test_successful_responses_carry_a_request_id_too(
-    client: TestClient, method: str, path: str, expected: int
-) -> None:
+def test_successful_responses_carry_a_request_id_too(client: TestClient, method: str, path: str, expected: int) -> None:
     response = client.request(method, path, json=book_payload() if method == "POST" else None)
 
     assert response.status_code == expected
@@ -367,9 +357,7 @@ def test_every_success_status_of_the_contract_is_reachable(client: TestClient) -
         "get_readiness": client.get("/health/ready").status_code,
         "list_books": client.get("/v1/books").status_code,
         "get_book": client.get(f"/v1/books/{book_id}").status_code,
-        "update_book": client.put(
-            f"/v1/books/{book_id}", json={"title": "T", "author": "A"}
-        ).status_code,
+        "update_book": client.put(f"/v1/books/{book_id}", json={"title": "T", "author": "A"}).status_code,
         "create_loan": loan.status_code,
         "list_loans": client.get("/v1/loans").status_code,
         "get_loan": client.get(f"/v1/loans/{loan.json()['id']}").status_code,

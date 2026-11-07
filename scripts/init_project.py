@@ -90,11 +90,7 @@ def rename_project(root: Path, dist_name: str) -> None:
     title = " ".join(word.capitalize() for word in dist_name.split("-"))
     for path in text_files(root):
         text = path.read_text(encoding="utf-8")
-        updated = (
-            text.replace(OLD_PACKAGE, package)
-            .replace(OLD_DIST, dist_name)
-            .replace(OLD_TITLE, title)
-        )
+        updated = text.replace(OLD_PACKAGE, package).replace(OLD_DIST, dist_name).replace(OLD_TITLE, title)
         if updated != text:
             path.write_text(updated, encoding="utf-8")
     old_dir = root / "src" / OLD_PACKAGE
@@ -111,14 +107,13 @@ def remove_example(root: Path, package: str) -> None:
 
     main = root / "src" / package / "main.py"
     lines = main.read_text(encoding="utf-8").splitlines(keepends=True)
-    main.write_text(
-        "".join(line for line in lines if "include_library" not in line), encoding="utf-8"
-    )
+    main.write_text("".join(line for line in lines if "include_library" not in line), encoding="utf-8")
 
     config = root / "src" / package / "config.py"
     text = config.read_text(encoding="utf-8")
     text = re.sub(
-        r"    (loans_max_active_per_member|loan_days): int = Field\(.*?\n    \)\n",
+        # The field is one line when it fits the line length, otherwise it is wrapped.
+        r"    (?:loans_max_active_per_member|loan_days): int = Field\((?:[^\n]*\)\n|.*?\n    \)\n)",
         "",
         text,
         flags=re.DOTALL,
@@ -199,17 +194,13 @@ def drop_template_machinery(root: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     """Parse the arguments and run the steps."""
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
-    )
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
         "name",
         nargs="?",
         help="new distribution name, lowercase with dashes, e.g. orders-api",
     )
-    parser.add_argument(
-        "--without-example", action="store_true", help="also delete the example domain"
-    )
+    parser.add_argument("--without-example", action="store_true", help="also delete the example domain")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="project root (default: cwd)")
     parser.add_argument(
         "--check-references",
@@ -233,9 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     root: Path = args.root.resolve()
     if not (root / "src" / OLD_PACKAGE).exists():
-        print(
-            f"No src/{OLD_PACKAGE} under {root}: was this project already renamed?", file=sys.stderr
-        )
+        print(f"No src/{OLD_PACKAGE} under {root}: was this project already renamed?", file=sys.stderr)
         return 1
 
     rename_project(root, args.name)

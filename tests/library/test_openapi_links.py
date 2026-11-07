@@ -86,6 +86,4 @@ def test_every_link_request_body_field_exists_in_the_target_request(spec: dict[s
             continue
         _, target = known[link["operationId"]]
         request = target["requestBody"]["content"]["application/json"]["schema"]
-        assert set(link["requestBody"]) <= set(schema_of(spec, request)["properties"]), (
-            f"{operation_id}: link {name}"
-        )
+        assert set(link["requestBody"]) <= set(schema_of(spec, request)["properties"]), f"{operation_id}: link {name}"
