@@ -1,8 +1,12 @@
 # fastapi-szumplate
 
 A copy-ready FastAPI service template by Szum-Tech: typed settings, structured logging, one error
-format (Problem Details), a generated and checked OpenAPI contract, an example domain you can
-delete, Docker, pre-commit and CI. Python 3.15, uv, Ruff, mypy (strict), pytest.
+format (Problem Details), a generated and checked OpenAPI contract, Docker, pre-commit and CI.
+Python 3.15, uv, Ruff, mypy (strict), pytest.
+
+<!-- begin:example -->
+It ships an example domain (a small library) that you can delete.
+<!-- end:example -->
 
 <!-- begin:template -->
 ## Use it
@@ -66,7 +70,7 @@ Parallel-guard tests carry the `concurrency` marker: `uv run pytest -m concurren
 
 ```text
 src/fastapi_szumplate/
-  main.py            create_app(settings): wiring only; include_library(app) is the one example hook
+  main.py            create_app(settings): wiring only
   __main__.py        python -m fastapi_szumplate
   config.py          Settings (pydantic-settings), get_settings dependency
   logging_config.py  structlog on stdlib: JSON or console, redaction, idempotent
@@ -76,13 +80,21 @@ src/fastapi_szumplate/
   types.py           IsoDate, IsoAwareDatetime, WholeNumber
   pagination.py      Page[T] envelope and limit/offset parameters
   health/            GET /health (liveness), GET /health/ready (readiness, 503 problem)
-  library/           THE EXAMPLE DOMAIN, removable as a unit
-    books/           default module shape: router, schemas, models, service, repository
-    loans/           hexagonal shape: domain, ports, service layer, adapters, entrypoints
-tests/               mirrors src; tests/library/ holds the example's tests
-scripts/             export_openapi.py, init_project.py, run_schemathesis.sh
+tests/               mirrors src
+scripts/             export_openapi.py, run_schemathesis.sh
 docs/                how-to guides, reference, explanation
 ```
+
+<!-- begin:template -->
+`scripts/init_project.py` (rename the copy, optionally drop the example) and
+`scripts/smoke_template.sh` (prove the result passes its gates) exist only in the template.
+<!-- end:template -->
+
+<!-- begin:example -->
+The example domain is removable as a unit. It lives in `src/fastapi_szumplate/library/` with its
+tests in `tests/library/`, and `include_library(app)` in `main.py` mounts it. `library/books/` has
+the default module shape (router, schemas, models, service, repository); `library/loans/` the
+hexagonal shape (domain, ports, service layer, adapters, entrypoints).
 
 Two module shapes are shown on purpose. Start every module like `books` (router, schemas, models,
 service, repository). Move one to the `loans` shape (domain objects, ports, adapters) only when
@@ -92,6 +104,13 @@ The example is a small library: books with a fixed number of copies, and loans w
 (unique ISBN, a free copy, three active loans per member, no repeat borrow, return once, not
 before the borrow date). Each state-dependent rule answers 409 with its own problem type and has a
 parallel test that fails when the guard is removed. Storage is in memory behind a repository port.
+<!-- end:example -->
+
+<!-- begin:bare -->
+Start every module with the default shape (router, schemas, models, service, repository); see
+[docs/how-to/add-a-module.md](docs/how-to/add-a-module.md) and
+[docs/explanation/architecture.md](docs/explanation/architecture.md).
+<!-- end:bare -->
 
 ## Errors
 
@@ -124,16 +143,18 @@ All settings come from the environment or `.env` (see `.env.example`):
 | `CORS_ORIGINS` | `[]` | JSON list of allowed origins; empty turns CORS off |
 | `HOST`, `PORT`, `RELOAD` | `127.0.0.1`, `8000`, `false` | Server binding |
 | `DEFAULT_PAGE_SIZE` | `20` | Page size when `limit` is omitted |
-| `LOANS_MAX_ACTIVE_PER_MEMBER`, `LOAN_DAYS` | `3`, `14` | Example domain only |
+| `LOANS_MAX_ACTIVE_PER_MEMBER`, `LOAN_DAYS` | `3`, `14` | Example domain only | <!-- only:example -->
 
 Authentication is out of scope for the template. Put it in a dependency on the routers you want to
 protect, and publish the security scheme in the OpenAPI document.
 
+<!-- begin:example -->
 ## Removing the example
 
 Run `python scripts/init_project.py <name> --without-example`, or follow
 [docs/how-to/remove-the-example.md](docs/how-to/remove-the-example.md) by hand. CI proves on every
 change that a copy without the example still passes `make check`.
+<!-- end:example -->
 
 ## Docker
 
@@ -149,8 +170,8 @@ with a read-only filesystem. Docker is not required for development.
 
 `.github/workflows/ci.yml` runs on push, pull request and weekly: `check` (`make check` and the
 dependency audit), `api` (Spectral, oasdiff, Schemathesis), `docker` (build and call `/health`),
-`template-smoke` (rename, remove the example, `make check`) and an informational free-threaded
-Python job that never blocks a merge.
+`template-smoke` (rename, with and without the example, then `make check`), <!-- only:template -->
+and an informational free-threaded Python job that never blocks a merge.
 
 ## License
 

@@ -18,6 +18,7 @@ IGNORED = shutil.ignore_patterns(
     ".ruff_cache",
     ".hypothesis",
     ".schemathesis",
+    ".import_linter_cache",
     ".coverage*",
     ".env",
     "requirements.txt",
@@ -66,6 +67,59 @@ def test_without_example_removes_the_domain_its_hook_settings_and_contracts(
     ]["contracts"]
     assert contracts
     assert all(".library" not in str(contract) for contract in contracts)
+
+
+def test_without_example_leaves_no_line_that_names_the_example(project: Path) -> None:
+    init_project.main(["orders-api", "--without-example", "--root", str(project)])
+
+    # openapi.json is rebuilt by `make openapi`, which scripts/smoke_template.sh runs and checks.
+    leftovers = init_project.find_example_references(project, skip=frozenset({"openapi.json"}))
+    assert leftovers == []
+    for name in init_project.EXAMPLE_DOCS:
+        assert not (project / name).exists(), name
+
+
+def test_a_removed_block_leaves_no_run_of_blank_lines_in_the_docs(project: Path) -> None:
+    init_project.main(["orders-api", "--without-example", "--root", str(project)])
+
+    for path in project.rglob("*.md"):
+        if ".venv" not in path.parts:
+            assert "\n\n\n" not in path.read_text(encoding="utf-8"), path
+
+
+def test_the_reference_finder_reports_the_line_that_names_the_example(project: Path) -> None:
+    (project / "NOTES.md").write_text("fine\nlend a Book\nthe standard library\n", encoding="utf-8")
+
+    leftovers = init_project.find_example_references(project)
+
+    assert "NOTES.md:2: lend a Book" in leftovers
+    assert not any(line.startswith("NOTES.md:3") for line in leftovers)
+
+
+def test_check_references_exits_nonzero_while_the_example_is_still_there(
+    project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert init_project.main(["--check-references", "--root", str(project)]) == 1
+    assert "library" in capsys.readouterr().out
+
+
+def test_rename_only_keeps_the_example_and_its_docs(project: Path) -> None:
+    init_project.main(["orders-api", "--root", str(project)])
+
+    assert (project / "src" / "orders_api" / "library").is_dir()
+    for name in init_project.EXAMPLE_DOCS:
+        assert (project / name).exists(), name
+    problem_types = (project / "docs" / "reference" / "problem-types.md").read_text("utf-8")
+    assert "`book-not-found`" in problem_types
+
+
+def test_without_example_keeps_the_problem_types_of_the_core(project: Path) -> None:
+    init_project.main(["orders-api", "--without-example", "--root", str(project)])
+
+    problem_types = (project / "docs" / "reference" / "problem-types.md").read_text("utf-8")
+    assert "`validation-error`" in problem_types
+    assert "`service-not-ready`" in problem_types
+    assert "`book-not-found`" not in problem_types
 
 
 @pytest.mark.parametrize("flags", [[], ["--without-example"]], ids=["rename", "bare"])

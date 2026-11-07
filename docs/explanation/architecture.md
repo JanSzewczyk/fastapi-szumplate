@@ -2,43 +2,61 @@
 
 ## Domain first, layers inside
 
-Top-level packages are business areas (`health`, `library/books`, `library/loans`); the layers
-(router, schemas, service, repository) sit inside each. A change to "loans" edits one folder.
+Top-level packages are business areas; the layers (router, schemas, service, repository) sit
+inside each. A change to one area edits one folder. `health` is the one area the template ships.
 
-## Two module shapes, one rule for choosing
+<!-- begin:example -->
+The example adds `library/books` and `library/loans`: a change to "loans" edits one folder.
+<!-- end:example -->
 
-- **Default shape** (`books`, `health`): router, schemas, models, service, repository. The service
-  is a few lines; the only rule is "an ISBN is unique".
-- **Hexagonal shape** (`loans`): `domain/` holds `Loan.lend` and `Loan.give_back` and imports
+## Module shapes, and one rule for choosing
+
+- **Default shape**: router, schemas, models, service, repository. The service is a few lines and
+  holds no rule that belongs to a domain object. Every new module starts here.
+- **Hexagonal shape**: `domain/` holds the rules as methods of the domain objects and imports
   nothing but the standard library; `domain/ports.py` declares what the module needs;
   `service_layer/` gathers facts and calls the domain; `adapters/` implement the ports;
   `entrypoints/` is the HTTP side.
 
-Structure is added to one module at a time, when it hurts. Do not convert `books` to match
-`loans`.
+Structure is added to one module at a time, when it hurts: the same rule copied in several places,
+a rule test that needs a database, business terms missing from the code. Do not convert a module
+to match another.
+
+<!-- begin:example -->
+`books` has the default shape (its only rule is "an ISBN is unique"); `loans` has the hexagonal
+one, with `Loan.lend` and `Loan.give_back` in `domain/`. Do not convert `books` to match `loans`.
+<!-- end:example -->
 
 ## Import direction
 
 Routers depend on services, services on the domain and its ports, adapters on the domain. The
-domain imports no web framework, no ORM, no adapter. Only `dependencies.py`, `library/__init__.py`
-and `main.py` import adapters. Modules refer to one another by id and never import each other's
-models: `loans` asks `books` for one number (the capacity) through
-`loans/adapters/books_catalog.py`. `make imports` enforces all of this.
+domain imports no web framework, no ORM, no adapter. Only `dependencies.py` and the code that
+wires the app (`main.py`) import adapters. Modules refer to one another by id and never import
+each other's models. `make imports` enforces the contracts in `pyproject.toml`.
+
+<!-- begin:example -->
+Only `dependencies.py`, `library/__init__.py` and `main.py` import adapters. `loans` asks `books`
+for one number (the capacity) through `loans/adapters/books_catalog.py`.
 
 ## The core never knows the example
 
 `main.py` calls `include_library(app)`; nothing else outside `library/` mentions it. That is what
 makes the example removable as a unit.
+<!-- end:example -->
 
 ## Wiring
 
-`create_app(settings)` builds the app and configures logging once. Repositories are built once, in
-`include_library`, and stored on `app.state`. Dependencies read them from the request, so tests
-replace them with `app.dependency_overrides` and the app never has module-level state.
+`create_app(settings)` builds the app. Adapters are built once and stored on `app.state`;
+dependencies read them from the request, so tests replace them with `app.dependency_overrides` and
+the app never has module-level state.
+
+<!-- begin:example -->
+The example's repositories are built in `include_library`.
+<!-- end:example -->
 
 ## Why handlers are sync `def`
 
-Routes run in Starlette's threadpool. The example does no async I/O, and plain `def` makes the
+Routes run in Starlette's threadpool. The template does no async I/O, and plain `def` makes
 parallel tests meaningful: concurrent requests really run at the same time. Switch a route to
 `async def` only when it awaits something, and then give each awaited call a timeout.
 
@@ -52,5 +70,7 @@ strings.
 ## Concurrency
 
 A rule that reads before it writes is guarded by one atomic step, and each guard has a parallel
-test that fails without it. See [add-a-module](../how-to/add-a-module.md) and
-[swap-in-a-database](../how-to/swap-in-a-database.md).
+test that fails without it. See [add-a-module](../how-to/add-a-module.md).
+<!-- begin:example -->
+[swap-in-a-database](../how-to/swap-in-a-database.md) shows the guards in SQL.
+<!-- end:example -->

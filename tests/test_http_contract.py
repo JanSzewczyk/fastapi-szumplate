@@ -1,8 +1,8 @@
 """The HTTP contract of the template core, proved without any domain module.
 
 Every case uses `/health`, `/health/ready` and the probe routes of `tests/probes.py`, so this file
-passes unchanged after `init_project.py --without-example` removes the example. Cases that need
-the example's routes live in `tests/library/test_http_contract.py`.
+passes unchanged after `init_project.py --without-example` removes the example. A case that needs
+a domain module's routes belongs with that module's tests.
 
 Rules checked here: every error is Problem Details with its own type, title and status; every
 response carries `X-Request-ID`; a wrong method is a 405 with `Allow`; a trailing slash is a 404;

@@ -43,5 +43,11 @@ cd "$SMOKE"
 run uv run --no-project python scripts/init_project.py orders-api ${flags[@]+"${flags[@]}"}
 run uv sync --locked
 run make openapi
+if [ "${#flags[@]}" -gt 0 ]; then
+    # init_project.py deleted itself in the copy; the template's copy lists what still names
+    # the removed example (after `make openapi`, so the regenerated spec is checked too).
+    run uv run --no-project python "$TEMPLATE/scripts/init_project.py" \
+        --check-references --root "$SMOKE"
+fi
 run make check
 echo "== template smoke ($variant): green"

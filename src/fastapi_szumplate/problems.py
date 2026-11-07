@@ -65,7 +65,7 @@ class ProblemDetail(BaseModel):
     detail: str | None = Field(
         default=None,
         description="Explanation of this occurrence. Do not parse it.",
-        examples=["Book not found."],
+        examples=["The resource does not exist."],
     )
     errors: list[ValidationIssue] | None = Field(
         default=None, description="Rejected inputs; present on validation errors only."

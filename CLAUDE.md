@@ -16,11 +16,14 @@ FastAPI service template. Python 3.15, uv, Ruff, mypy (strict), pytest.
 
 - Template core: `config.py`, `logging_config.py`, `middleware.py`, `problems.py`, `openapi.py`,
   `types.py`, `pagination.py`, `health/`.
+<!-- begin:example -->
 - Example domain: `src/fastapi_szumplate/library/` and `tests/library/`, mounted by one
   `include_library(app)` call in `main.py`. Nothing else may import `library`. Remove it with
   `docs/how-to/remove-the-example.md`.
-- `books` uses the default module shape; `loans` is hexagonal. Add structure to a module only when
-  it hurts (see `docs/explanation/architecture.md`).
+- `books` uses the default module shape; `loans` is hexagonal.
+<!-- end:example -->
+- Add structure to a module only when it hurts (see `docs/explanation/architecture.md`).
+  New modules start like `docs/how-to/add-a-module.md` says.
 
 ## Rules for changes
 
@@ -36,8 +39,12 @@ FastAPI service template. Python 3.15, uv, Ruff, mypy (strict), pytest.
   test fails, running the mutant from a copy and printing the package `__file__` first.
 - Tests build settings with `Settings(_env_file=None)` (see `tests/conftest.py: make_settings`),
   replace dependencies with `app.dependency_overrides` (cleared afterwards by the `app` fixture)
-  and build data with the factories in `tests/library/factories.py`, setting every value the test
-  asserts on.
+  and build data with factories, setting every value the test asserts on.
+  The example's factories are in `tests/library/factories.py`. <!-- only:example -->
+- Tests outside the example use `/health` and the probe routes of `tests/probes.py` (fixture
+  `probe_app`), never the example's routes, so they survive removing the example.
+  `tests/library/` holds the example-bound ones. <!-- only:example -->
+  `make smoke-template` proves a copy without the example passes `make check`. <!-- only:template -->
 - Logging: structlog, constant event names, snake_case fields, no f-strings, no `print`. Log a
   handled error once, where it is handled. Never log secrets; the `redact` processor is a safety
   net, not a licence.
