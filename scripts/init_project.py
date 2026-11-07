@@ -8,8 +8,10 @@ Run it once, in the root of the copy, before the first commit:
 It renames the distribution (`fastapi-szumplate` -> `orders-api`), the package
 (`fastapi_szumplate` -> `orders_api`) and its directory, and rewrites every text file. With
 `--without-example` it also deletes the example domain (`library/`, `tests/library/`), its
-`include_library` hook, its settings and its import-linter contracts. Afterwards run
-`make openapi && make check`: the OpenAPI document carries the service name.
+`include_library` hook, its settings and its import-linter contracts. It then deletes itself,
+its test, the `template-smoke` CI job and the "Use it" section of the README: they only make sense
+in the template. Afterwards run `make openapi && make check`: the OpenAPI document carries the
+service name.
 """
 
 import argparse
@@ -109,6 +111,27 @@ def remove_example(root: Path, package: str) -> None:
     pyproject.write_text("".join(b for b in blocks if ".library" not in b), encoding="utf-8")
 
 
+def drop_template_machinery(root: Path) -> None:
+    """Delete what only makes sense in the template: this script, its test, the smoke job."""
+    (root / "scripts" / "init_project.py").unlink(missing_ok=True)
+    (root / "tests" / "test_init_project.py").unlink(missing_ok=True)
+
+    ci = root / ".github" / "workflows" / "ci.yml"
+    if ci.exists():
+        text = ci.read_text(encoding="utf-8")
+        ci.write_text(
+            re.sub(r"\n  # Proves a copy.*?(?=\n  # Informational)", "", text, flags=re.DOTALL),
+            encoding="utf-8",
+        )
+
+    readme = root / "README.md"
+    if readme.exists():
+        text = readme.read_text(encoding="utf-8")
+        readme.write_text(
+            re.sub(r"## Use it\n.*?(?=## Run it)", "", text, flags=re.DOTALL), encoding="utf-8"
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse the arguments and run the steps."""
     parser = argparse.ArgumentParser(
@@ -139,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     rename_project(root, args.name)
     if args.without_example:
         remove_example(root, args.name.replace("-", "_"))
+    drop_template_machinery(root)
     print(f"Renamed to {args.name}. Next: review the contact URL in openapi.py, then")
     print("  uv lock --check && make openapi && make check")
     return 0
