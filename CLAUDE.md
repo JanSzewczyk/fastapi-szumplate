@@ -41,8 +41,9 @@ FastAPI service template. Python 3.15, uv, Ruff, mypy (strict), pytest.
   replace dependencies with `app.dependency_overrides` (cleared afterwards by the `app` fixture)
   and build data with factories, setting every value the test asserts on.
   The example's factories are in `tests/library/factories.py`. <!-- only:example -->
-- Tests outside the example use `/health` and the probe routes of `tests/probes.py` (fixture
-  `probe_app`), never the example's routes, so they survive removing the example.
+- Tests of the core use `/health` and the probe routes of `tests/probes.py` (fixture
+  `probe_app`).
+  They never call the example's routes, so they survive removing the example; <!-- only:example -->
   `tests/library/` holds the example-bound ones. <!-- only:example -->
   `make smoke-template` proves a copy without the example passes `make check`. <!-- only:template -->
 - Logging: structlog, constant event names, snake_case fields, no f-strings, no `print`. Log a

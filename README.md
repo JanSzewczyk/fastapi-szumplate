@@ -65,7 +65,7 @@ access log. If you must use the CLI, pass `--factory` (`uvicorn fastapi_szumplat
 | `make smoke-template` | Build projects from the template in a temp dir, with and without the example, and run their gates (slow) | <!-- only:template -->
 | `make clean` | Remove caches and generated files |
 
-Parallel-guard tests carry the `concurrency` marker: `uv run pytest -m concurrency`.
+Parallel-guard tests carry the `concurrency` marker: `uv run pytest -m concurrency`. <!-- only:example -->
 
 ## What is inside
 
@@ -177,8 +177,9 @@ with a read-only filesystem. Docker is not required for development.
 `PORT`; everything else comes from your `.env`.
 
 Run one worker and one replica. Anything the app keeps in memory is per process, so a second
-worker or replica would not see it. The example's repositories and the locks that make its <!-- only:example -->
-rules atomic (`threading.RLock`) are such state; move them to a database first, as <!-- only:example -->
+worker or replica would not see it.
+The example's repositories and the locks that make its rules atomic (`threading.RLock`) are such <!-- only:example -->
+state; move them to a database first, as <!-- only:example -->
 [docs/how-to/swap-in-a-database.md](docs/how-to/swap-in-a-database.md) shows. <!-- only:example -->
 
 ## CI
