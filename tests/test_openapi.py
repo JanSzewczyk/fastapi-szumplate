@@ -81,6 +81,14 @@ def test_every_route_with_input_documents_a_422(spec: dict[str, Any]) -> None:
             assert "422" in operation["responses"], f"{method} {path}"
 
 
+def test_every_route_with_a_body_documents_the_400_for_unreadable_bytes(
+    spec: dict[str, Any],
+) -> None:
+    for method, path, operation in operations(spec):
+        if operation.get("requestBody"):
+            assert "400" in operation["responses"], f"{method} {path}"
+
+
 def test_every_registered_problem_type_is_documented_in_some_response(
     app: FastAPI, spec: dict[str, Any]
 ) -> None:

@@ -23,7 +23,7 @@ from fastapi_szumplate.library.loans.entrypoints.schemas import (
 )
 from fastapi_szumplate.library.loans.service_layer.services import LoanService
 from fastapi_szumplate.pagination import PageParams, get_page_params
-from fastapi_szumplate.problems import VALIDATION_ERROR, problem_response
+from fastapi_szumplate.problems import VALIDATION_ERROR, malformed_body_response, problem_response
 
 router = APIRouter(prefix=f"{API_PREFIX}/loans", tags=["loans"])
 
@@ -45,6 +45,7 @@ Service = Annotated[LoanService, Depends(get_loan_service)]
                 }
             },
         },
+        400: malformed_body_response(),
         404: problem_response(BOOK_NOT_FOUND),
         409: problem_response(ALREADY_BORROWED, MEMBER_LIMIT_REACHED, NO_FREE_COPY),
         422: problem_response(VALIDATION_ERROR),
@@ -110,6 +111,7 @@ def get_loan(loan_id: LoanId, service: Service) -> LoanResponse:
     "/{loan_id}/return",
     operation_id="return_loan",
     responses={
+        400: malformed_body_response(),
         404: problem_response(LOAN_NOT_FOUND),
         409: problem_response(LOAN_ALREADY_RETURNED, RETURNED_BEFORE_BORROWED),
         422: problem_response(VALIDATION_ERROR),

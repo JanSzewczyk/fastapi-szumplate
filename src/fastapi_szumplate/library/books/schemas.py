@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from fastapi_szumplate.library.books.models import Book
 from fastapi_szumplate.pagination import Page
+from fastapi_szumplate.types import WholeNumber
 
 Isbn = Annotated[
     str,
@@ -39,8 +40,7 @@ class BookCreate(BaseModel):
     isbn: Isbn
     title: Title
     author: Author
-    copies: int = Field(
-        strict=True,
+    copies: WholeNumber = Field(
         ge=1,
         le=1000,
         description="How many copies the library owns. Fixed once the book is created.",

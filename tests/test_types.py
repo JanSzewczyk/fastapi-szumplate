@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from fastapi_szumplate.types import IsoAwareDatetime, IsoDate
+from fastapi_szumplate.types import IsoAwareDatetime, IsoDate, WholeNumber
 
 
 class Dated(BaseModel):
@@ -52,3 +52,20 @@ def test_naive_datetime_is_rejected() -> None:
 def test_python_date_and_aware_datetime_objects_are_accepted() -> None:
     assert Dated(day=date(2026, 11, 7)).day == date(2026, 11, 7)
     assert Stamped(at=datetime(2026, 11, 7, tzinfo=UTC)).at.year == 2026
+
+
+class Counted(BaseModel):
+    count: WholeNumber
+
+
+@pytest.mark.parametrize(("value", "expected"), [(3, 3), (3.0, 3), (-2.0, -2)])
+def test_whole_numbers_are_accepted_also_as_floats(value: float, expected: int) -> None:
+    assert Counted.model_validate({"count": value}).count == expected
+
+
+@pytest.mark.parametrize(
+    "value", ["3", 3.5, True, None, float("inf"), float("nan")], ids=lambda v: repr(v)
+)
+def test_strings_fractions_and_booleans_are_not_whole_numbers(value: object) -> None:
+    with pytest.raises(ValidationError, match="whole number"):
+        Counted.model_validate({"count": value})

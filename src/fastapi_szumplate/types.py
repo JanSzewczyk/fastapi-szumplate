@@ -27,5 +27,19 @@ def _iso_aware_datetime_only(value: Any) -> Any:
     raise ValueError("Input should be a datetime in ISO 8601 format with a UTC offset")
 
 
-type IsoDate = Annotated[date, BeforeValidator(_iso_date_only)]
-type IsoAwareDatetime = Annotated[AwareDatetime, BeforeValidator(_iso_aware_datetime_only)]
+def _whole_number_only(value: Any) -> Any:
+    """Accept an int, or a float with no fraction (JSON Schema calls 3.0 an integer); no strings."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError("Input should be a whole number")
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise ValueError("Input should be a whole number")
+        return int(value)
+    return value
+
+
+# Plain `Annotated` aliases, not `type X = ...`: Pydantic does not apply `Field(ge=...)` through a
+# PEP 695 alias in the JSON schema (it emits unknown `ge`/`le` keys next to a `$ref`).
+WholeNumber = Annotated[int, BeforeValidator(_whole_number_only)]
+IsoDate = Annotated[date, BeforeValidator(_iso_date_only)]
+IsoAwareDatetime = Annotated[AwareDatetime, BeforeValidator(_iso_aware_datetime_only)]

@@ -100,7 +100,8 @@ def test_list_uses_the_configured_page_size_by_default(api: TestClient) -> None:
         ("post", "/v1/books", {"isbn": isbn_for(1), "title": "", "author": "A", "copies": 1}),
         ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": 0}),
         ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": "3"}),
-        ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": 1.0}),
+        ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": 1.5}),
+        ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A", "copies": True}),
         ("post", "/v1/books", {"isbn": isbn_for(1), "title": "T", "author": "A"}),
         (
             "post",
@@ -120,7 +121,8 @@ def test_list_uses_the_configured_page_size_by_default(api: TestClient) -> None:
         "empty-title",
         "zero-copies",
         "copies-as-string",
-        "copies-as-float",
+        "copies-with-fraction",
+        "copies-as-bool",
         "missing-copies",
         "extra-field",
         "update-missing-author",
@@ -159,3 +161,21 @@ def test_access_log_uses_the_full_route_template(
     api.get(f"/v1/books/{MISSING_ID}")
 
     assert '"route": "/v1/books/{book_id}"' in capsys.readouterr().out
+
+
+def test_a_whole_number_written_with_a_fraction_is_an_integer(api: TestClient) -> None:
+    """JSON Schema says 3.0 is an integer, so the API accepts what its own spec allows."""
+    response = api.post("/v1/books", json=book_payload(copies=3.0))
+
+    assert response.status_code == 201
+    assert response.json()["copies"] == 3
+
+
+def test_a_body_that_is_not_text_is_a_400_problem(api: TestClient) -> None:
+    response = api.post(
+        "/v1/books", content=b"\xff\xfe\x00", headers={"Content-Type": "application/json"}
+    )
+
+    assert response.status_code == 400
+    assert response.headers["content-type"] == PROBLEM
+    assert response.json()["title"] == "Bad Request"

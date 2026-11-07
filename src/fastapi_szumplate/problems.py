@@ -90,6 +90,15 @@ def problem_response(*types: ProblemType, description: str | None = None) -> dic
     }
 
 
+def malformed_body_response() -> dict[str, Any]:
+    """Build the `responses` entry for a body that cannot be read at all.
+
+    Starlette answers 400 when the bytes are not decodable text (for example invalid UTF-8);
+    a body that is text but not JSON is a 422 `json_invalid`.
+    """
+    return problem_response(description="The request body could not be read as text.")
+
+
 def register_problem_types(app: FastAPI, *types: ProblemType) -> None:
     """Record the problem types an app can answer with, so tests can check they are documented."""
     existing: list[ProblemType] = getattr(app.state, "problem_types", [])

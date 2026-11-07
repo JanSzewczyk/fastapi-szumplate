@@ -16,7 +16,7 @@ from fastapi_szumplate.library.books.schemas import (
 from fastapi_szumplate.library.books.service import BookService
 from fastapi_szumplate.library.constants import API_PREFIX, BOOK_NOT_FOUND
 from fastapi_szumplate.pagination import PageParams, get_page_params
-from fastapi_szumplate.problems import VALIDATION_ERROR, problem_response
+from fastapi_szumplate.problems import VALIDATION_ERROR, malformed_body_response, problem_response
 
 # The version prefix is part of the router, so the route template in logs is the full path.
 router = APIRouter(prefix=f"{API_PREFIX}/books", tags=["books"])
@@ -39,6 +39,7 @@ Service = Annotated[BookService, Depends(get_book_service)]
                 }
             },
         },
+        400: malformed_body_response(),
         409: problem_response(ISBN_ALREADY_EXISTS),
         422: problem_response(VALIDATION_ERROR),
     },
@@ -82,7 +83,11 @@ def get_book(book_id: BookId, service: Service) -> BookResponse:
 @router.put(
     "/{book_id}",
     operation_id="update_book",
-    responses={404: problem_response(BOOK_NOT_FOUND), 422: problem_response(VALIDATION_ERROR)},
+    responses={
+        400: malformed_body_response(),
+        404: problem_response(BOOK_NOT_FOUND),
+        422: problem_response(VALIDATION_ERROR),
+    },
 )
 def update_book(book_id: BookId, body: BookUpdate, service: Service) -> BookResponse:
     """Replace the title and author of a book.

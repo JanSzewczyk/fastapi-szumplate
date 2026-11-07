@@ -99,8 +99,9 @@ def configure_logging(settings: Settings) -> None:
     root.addHandler(handler)
     root.setLevel(settings.log_level)
 
-    # uvicorn's own loggers feed the root pipeline; its access log is replaced by our middleware.
-    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    # uvicorn's own loggers feed the root pipeline. `uvicorn.access` is left alone: uvicorn
+    # silences it with `access_log=False`, because RequestContextMiddleware writes the access line.
+    for name in ("uvicorn", "uvicorn.error"):
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers.clear()
         uvicorn_logger.propagate = True
