@@ -60,6 +60,20 @@ jobs:
           fi
           docker logs api
           docker stop api
+      # compose.yaml sets the read-only filesystem, dropped capabilities and the healthcheck that
+      # `docker run` above does not, so it is started and called on its own.
+      - name: Start the compose service and call the health endpoint
+        run: |
+          docker compose config --quiet
+          if ! docker compose up -d --build --wait --wait-timeout 90 \
+            || ! curl --silent --show-error --fail --retry 15 --retry-delay 2 --retry-all-errors \
+              http://127.0.0.1:8000/health; then
+            docker compose logs
+            exit 1
+          fi
+      - name: Stop the compose service
+        if: always()
+        run: docker compose down
 
   # begin:template
   # Proves that a project made from the template passes its own `make check`, with and without
