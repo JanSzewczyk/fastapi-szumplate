@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Iterator
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ import pytest
 import structlog
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
 from fastapi_szumplate import __main__ as entry_point
@@ -180,6 +182,39 @@ def test_the_traceback_of_an_unhandled_error_is_logged_once_on_the_request_line(
     [line] = lines(capsys)
     [exception] = line["exception"]
     assert (exception["exc_type"], exception["exc_value"]) == ("RuntimeError", "secret internals")
+
+
+def test_a_failure_after_the_response_started_is_logged_at_error_without_a_second_traceback(
+    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Status 200 is already sent; the server logs the traceback, this line flags the request."""
+
+    @json_app.get("/stream", operation_id="get_stream_probe")
+    def stream() -> StreamingResponse:
+        def chunks() -> Iterator[bytes]:
+            yield b"first chunk"
+            raise RuntimeError("secret internals")
+
+        return StreamingResponse(chunks())
+
+    with pytest.raises(RuntimeError, match="secret internals"):
+        TestClient(json_app).get("/stream")
+
+    [line] = lines(capsys)
+    assert (line["event"], line["status"], line["level"]) == ("request_completed", 200, "error")
+    assert line["aborted_by"] == "RuntimeError"
+    assert "exception" not in line
+    assert "secret internals" not in json.dumps(line)
+
+
+def test_a_request_that_finishes_normally_has_no_aborted_by_field(
+    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
+) -> None:
+    TestClient(json_app).get("/health")
+
+    [line] = lines(capsys)
+    assert (line["status"], line["level"]) == (200, "info")
+    assert "aborted_by" not in line
 
 
 @pytest.mark.parametrize("log_format", ["json", "console"])

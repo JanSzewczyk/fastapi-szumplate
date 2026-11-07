@@ -53,6 +53,7 @@ class RequestContextMiddleware:
         state["request_id"] = request_id
 
         status = 500  # stays 500 when the exception escapes before any response is sent
+        escaped: str | None = None  # type of an exception that left the application
         started = time.perf_counter()
 
         async def send_with_request_id(message: Message) -> None:
@@ -64,6 +65,9 @@ class RequestContextMiddleware:
 
         try:
             await self.app(scope, receive, send_with_request_id)
+        except Exception as exc:
+            escaped = type(exc).__name__
+            raise
         finally:
             route = getattr(scope.get("route"), "path", None)
             fields = {
@@ -72,7 +76,12 @@ class RequestContextMiddleware:
                 "status": status,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
             }
-            if status >= 500:
+            if escaped is not None:
+                # The response had started, so its status could not change. The server logs the
+                # traceback of an exception that escapes; this line only flags the request.
+                fields["aborted_by"] = escaped
+                log.error("request_completed", **fields)
+            elif status >= 500:
                 # The traceback of an unhandled error is logged here, on the one line per request.
                 if _UNHANDLED_KEY in state:
                     fields["exc_info"] = state[_UNHANDLED_KEY]

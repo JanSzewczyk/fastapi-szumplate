@@ -40,6 +40,8 @@ All notable changes to this template are recorded here. The format follows
 - A JSON body with an integer of more than 4300 digits is a 422 `json_invalid`, not a 400. Only
   FastAPI's own body-parsing 400 is reclassified: a 400 that application code raises from a
   `ValueError` keeps its status and detail.
+- A request that fails after its response started is logged at `error` with `aborted_by`, not as
+  an `info` line with the status that was sent.
 
 ### Changed
 

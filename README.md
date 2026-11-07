@@ -126,7 +126,9 @@ A 500 is answered by `UnhandledErrorMiddleware`, the innermost middleware, so it
 the generic problem with the `request_id`; the traceback is logged once, on the `request_completed`
 line of that request, without local variables. Known limits: if the application fails after the
 response has started, the status and headers are already sent and cannot be replaced, so the
-server cuts the connection and logs the traceback itself; a failure in the middleware themselves is
+server cuts the connection and logs the traceback itself, while the `request_completed` line keeps
+the status that was sent but is logged at `error` with `aborted_by` set to the exception type; a
+failure in the middleware themselves is
 answered by Starlette's backstop handler, still the generic problem but without `X-Request-ID` or
 CORS headers. A refused CORS preflight is a 400 problem too; a successful preflight is Starlette's
 bodyless `OK` (`text/plain`), which is not an error.
