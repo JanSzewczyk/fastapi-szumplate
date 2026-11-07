@@ -18,6 +18,7 @@ from fastapi_szumplate.library.loans.domain.ports import LoanRepository
 from tests.library.factories import book_payload, isbn_for
 
 PARALLEL = 8
+ROUNDS = pytest.mark.parametrize("attempt", range(5), ids=lambda n: f"round-{n}")  # fresh app each
 TYPE = "urn:problem:fastapi-szumplate:"
 
 pytestmark = [pytest.mark.concurrency, pytest.mark.usefixtures("pinned_clock")]
@@ -75,7 +76,10 @@ def lend(book_id: str, member_id: str) -> Callable[[TestClient], Any]:
     )
 
 
-def test_the_last_copy_goes_to_one_of_eight_members(app: FastAPI, loans: LoanRepository) -> None:
+@ROUNDS
+def test_the_last_copy_goes_to_one_of_eight_members(
+    app: FastAPI, loans: LoanRepository, attempt: int
+) -> None:
     book_id = add_book(app, 1, copies=1)
 
     responses = in_parallel(app, [lend(book_id, f"member-{n}") for n in range(PARALLEL)])
@@ -85,8 +89,9 @@ def test_the_last_copy_goes_to_one_of_eight_members(app: FastAPI, loans: LoanRep
     assert loans.count_active_for_book(UUID(book_id)) == 1
 
 
+@ROUNDS
 def test_one_member_cannot_exceed_the_limit_with_eight_parallel_loans(
-    app: FastAPI, loans: LoanRepository
+    app: FastAPI, loans: LoanRepository, attempt: int
 ) -> None:
     books = [add_book(app, n) for n in range(1, PARALLEL + 1)]
 
@@ -99,8 +104,9 @@ def test_one_member_cannot_exceed_the_limit_with_eight_parallel_loans(
     assert len(loans.active_for_member("member-1")) == 3
 
 
+@ROUNDS
 def test_the_same_member_and_book_in_eight_parallel_requests_make_one_loan(
-    app: FastAPI, loans: LoanRepository
+    app: FastAPI, loans: LoanRepository, attempt: int
 ) -> None:
     book_id = add_book(app, 1, copies=PARALLEL)
 
@@ -113,8 +119,9 @@ def test_the_same_member_and_book_in_eight_parallel_requests_make_one_loan(
     assert len(loans.active_for_member("member-1")) == 1
 
 
+@ROUNDS
 def test_a_loan_is_returned_once_in_eight_parallel_returns(
-    app: FastAPI, loans: LoanRepository
+    app: FastAPI, loans: LoanRepository, attempt: int
 ) -> None:
     book_id = add_book(app, 1)
     loan_id = (
@@ -132,3 +139,27 @@ def test_a_loan_is_returned_once_in_eight_parallel_returns(
         f"{TYPE}loan-already-returned"
     }
     assert loans.count_active_for_book(UUID(book_id)) == 0
+
+
+@ROUNDS
+def test_parallel_lendings_of_two_scarce_books_never_oversell_either(
+    app: FastAPI, loans: LoanRepository, attempt: int
+) -> None:
+    first = add_book(app, 1, copies=2)
+    second = add_book(app, 2, copies=3)
+    calls = [lend(first, f"a-{n}") for n in range(PARALLEL)] + [
+        lend(second, f"b-{n}") for n in range(PARALLEL)
+    ]
+
+    responses = in_parallel(app, calls)
+
+    by_book = {first: 2, second: 3}
+    for book_id, copies in by_book.items():
+        outcomes = [
+            r.status_code
+            for r in responses
+            if r.status_code == 201 and r.json()["book_id"] == book_id
+        ]
+        assert len(outcomes) == copies
+        assert loans.count_active_for_book(UUID(book_id)) == copies
+    assert sorted(r.status_code for r in responses) == [201] * 5 + [409] * (2 * PARALLEL - 5)

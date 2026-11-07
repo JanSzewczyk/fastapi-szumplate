@@ -1,8 +1,14 @@
+import re
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
+from fastapi_szumplate.main import create_app
+from tests.conftest import make_settings
 from tests.library.factories import book_payload, isbn_for
 
 PROBLEM = "application/problem+json"
@@ -179,3 +185,299 @@ def test_a_body_that_is_not_text_is_a_400_problem(api: TestClient) -> None:
     assert response.status_code == 400
     assert response.headers["content-type"] == PROBLEM
     assert response.json()["title"] == "Bad Request"
+
+
+ARABIC_INDIC_ISBN = "\u0669\u0667\u0668\u0660\u0661\u0663\u0662\u0663\u0665\u0660\u0668\u0668\u0664"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"copies": 1},
+        {"copies": 1000},
+        {"title": "T"},
+        {"title": "t" * 200},
+        {"author": "a" * 200},
+        {"title": "\u00e9" * 200},
+        {"title": "\U0001f4da" * 200},
+        {"isbn": "0" * 13},
+    ],
+    ids=[
+        "copies-min",
+        "copies-max",
+        "title-one-char",
+        "title-200",
+        "author-200",
+        "title-200-accented",
+        "title-200-emoji",
+        "isbn-all-zeros",
+    ],
+)
+def test_values_on_the_edge_of_the_limits_are_accepted(
+    api: TestClient, overrides: dict[str, Any]
+) -> None:
+    payload = book_payload(**overrides)
+
+    response = api.post("/v1/books", json=payload)
+
+    assert response.status_code == 201
+    assert {k: response.json()[k] for k in payload} == payload
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("isbn", "9" * 12),
+        ("isbn", "9" * 14),
+        ("isbn", ""),
+        ("isbn", "978-0132350884"),
+        ("isbn", "97801323508X4"),
+        ("isbn", " 9780132350884"),
+        ("isbn", "9780132350884 "),
+        ("isbn", "9780132350884\n"),
+        ("isbn", 9780132350884),
+        ("isbn", None),
+        ("title", "t" * 201),
+        ("title", "\U0001f4da" * 201),
+        ("title", None),
+        ("title", 5),
+        ("author", "a" * 201),
+        ("author", ""),
+        ("author", None),
+        ("copies", 1001),
+        ("copies", 0),
+        ("copies", -1),
+        ("copies", 1000.5),
+        ("copies", None),
+        ("copies", [3]),
+        ("copies", "3"),
+    ],
+    ids=lambda v: repr(v)[:18],
+)
+def test_a_value_outside_the_documented_limits_is_a_422_naming_the_field(
+    api: TestClient, field: str, value: Any
+) -> None:
+    response = api.post("/v1/books", json=book_payload(**{field: value}))
+
+    assert response.status_code == 422
+    assert response.headers["content-type"] == PROBLEM
+    assert [issue["loc"][:2] for issue in response.json()["errors"]] == [["body", field]]
+    assert api.get("/v1/books").json()["total"] == 0
+
+
+@given(isbn=st.text(alphabet="0123456789-X \n", max_size=15))
+@settings(max_examples=60, deadline=None)
+def test_an_ascii_string_is_stored_only_when_it_is_thirteen_digits(isbn: str) -> None:
+    client = TestClient(create_app(make_settings()))
+
+    response = client.post("/v1/books", json=book_payload(isbn=isbn))
+
+    if re.fullmatch(r"[0-9]{13}", isbn):
+        assert response.status_code == 201
+    else:
+        assert response.status_code == 422
+        assert client.get("/v1/books").json()["total"] == 0
+
+
+@pytest.mark.parametrize(
+    ("content", "error_type"),
+    [
+        (b"", "missing"),
+        (b"null", "model_attributes_type"),
+        (b"[]", "model_attributes_type"),
+        (b'"text"', "model_attributes_type"),
+        (b"5", "model_attributes_type"),
+        (b"true", "model_attributes_type"),
+        (b'{"isbn": ', "json_invalid"),
+        (b"{'isbn': '1'}", "json_invalid"),
+        (b"{}", "missing"),
+    ],
+    ids=["empty", "null", "array", "string", "number", "bool", "truncated", "single-quotes", "{}"],
+)
+def test_a_body_that_is_not_a_book_object_is_a_422(
+    api: TestClient, content: bytes, error_type: str
+) -> None:
+    response = api.post("/v1/books", content=content, headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+    assert response.headers["content-type"] == PROBLEM
+    assert response.json()["errors"][0]["type"] == error_type
+
+
+def test_the_location_header_points_at_the_new_book(api: TestClient) -> None:
+    created = api.post("/v1/books", json=book_payload())
+
+    fetched = api.get(created.headers["Location"])
+
+    assert fetched.status_code == 200
+    assert fetched.json() == created.json()
+
+
+def test_a_created_book_has_a_uuid_and_two_books_never_share_one(api: TestClient) -> None:
+    first = api.post("/v1/books", json=book_payload()).json()["id"]
+    second = api.post("/v1/books", json=book_payload()).json()["id"]
+
+    assert UUID(first) != UUID(second)
+
+
+def test_a_refused_duplicate_changes_nothing(api: TestClient) -> None:
+    original = create_book(api, isbn=isbn_for(5), title="Original", copies=2)
+
+    refused = api.post("/v1/books", json=book_payload(isbn=isbn_for(5), title="Impostor", copies=9))
+
+    listed = api.get("/v1/books").json()
+    assert refused.status_code == 409
+    assert listed["total"] == 1
+    assert listed["items"] == [original]
+
+
+def test_the_409_names_the_isbn_it_refused_and_never_the_title(api: TestClient) -> None:
+    create_book(api, isbn=isbn_for(5))
+
+    refused = api.post("/v1/books", json=book_payload(isbn=isbn_for(5), title="Secret title"))
+
+    assert isbn_for(5) in refused.json()["detail"]
+    assert "Secret title" not in refused.text
+
+
+@pytest.mark.parametrize("extra", ["isbn", "copies"])
+def test_an_update_cannot_change_the_isbn_or_the_capacity(api: TestClient, extra: str) -> None:
+    book = create_book(api, isbn=isbn_for(1), copies=2)
+    payload = {"title": "New", "author": "Other", "isbn": isbn_for(2), "copies": 9}
+
+    response = api.put(f"/v1/books/{book['id']}", json={**payload, "id": book["id"]})
+    only_one = api.put(
+        f"/v1/books/{book['id']}",
+        json={"title": "New", "author": "Other", extra: payload[extra]},
+    )
+
+    assert response.status_code == 422
+    assert only_one.status_code == 422
+    assert [i["type"] for i in only_one.json()["errors"]] == ["extra_forbidden"]
+    assert api.get(f"/v1/books/{book['id']}").json() == book
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"title": "", "author": "A"},
+        {"title": "T", "author": ""},
+        {"title": "t" * 201, "author": "A"},
+        {"title": "T", "author": "a" * 201},
+        {"title": None, "author": "A"},
+        {"title": "T", "author": 5},
+    ],
+    ids=["empty", "empty-title", "empty-author", "title-201", "author-201", "null", "number"],
+)
+def test_an_invalid_update_is_a_422_and_changes_nothing(
+    api: TestClient, payload: dict[str, Any]
+) -> None:
+    book = create_book(api)
+
+    response = api.put(f"/v1/books/{book['id']}", json=payload)
+
+    assert response.status_code == 422
+    assert api.get(f"/v1/books/{book['id']}").json() == book
+
+
+def test_validation_is_reported_before_the_book_is_looked_up(api: TestClient) -> None:
+    response = api.put(f"/v1/books/{MISSING_ID}", json={"title": ""})
+
+    assert response.status_code == 422
+
+
+def test_an_update_on_the_edge_of_the_limits_is_accepted(api: TestClient) -> None:
+    book = create_book(api)
+
+    response = api.put(f"/v1/books/{book['id']}", json={"title": "t" * 200, "author": "a" * 200})
+
+    assert response.status_code == 200
+    assert (len(response.json()["title"]), len(response.json()["author"])) == (200, 200)
+
+
+def test_an_update_keeps_the_place_of_the_book_in_the_list_and_is_repeatable(
+    api: TestClient,
+) -> None:
+    books = [create_book(api, isbn=isbn_for(n)) for n in range(1, 4)]
+
+    first = api.put(f"/v1/books/{books[0]['id']}", json={"title": "Z", "author": "Z"})
+    second = api.put(f"/v1/books/{books[0]['id']}", json={"title": "Z", "author": "Z"})
+
+    listed = api.get("/v1/books").json()
+    assert first.json() == second.json()
+    assert [b["id"] for b in listed["items"]] == [b["id"] for b in books]
+    assert listed["total"] == 3
+
+
+@pytest.mark.parametrize("limit", [1, 100])
+def test_the_limits_of_the_page_size_are_accepted(api: TestClient, limit: int) -> None:
+    create_book(api)
+
+    response = api.get("/v1/books", params={"limit": limit})
+
+    assert response.status_code == 200
+    assert response.json()["limit"] == limit
+
+
+def test_an_offset_at_or_past_the_end_is_an_empty_page_with_the_real_total(
+    api: TestClient,
+) -> None:
+    for number in range(1, 4):
+        create_book(api, isbn=isbn_for(number))
+
+    at_end = api.get("/v1/books", params={"offset": 3}).json()
+    far_past = api.get("/v1/books", params={"offset": 10**9, "limit": 100}).json()
+
+    assert (at_end["items"], at_end["total"], at_end["offset"]) == ([], 3, 3)
+    assert (far_past["items"], far_past["total"]) == ([], 3)
+
+
+def test_walking_every_page_yields_each_book_once_in_creation_order(api: TestClient) -> None:
+    created = [create_book(api, isbn=isbn_for(n))["id"] for n in range(1, 8)]
+
+    walked: list[str] = []
+    for offset in range(0, 8, 3):
+        page = api.get("/v1/books", params={"limit": 3, "offset": offset}).json()
+        assert page["total"] == 7
+        walked += [b["id"] for b in page["items"]]
+
+    assert walked == created
+
+
+def test_a_page_larger_than_the_catalogue_returns_all_of_it(api: TestClient) -> None:
+    for number in range(1, 4):
+        create_book(api, isbn=isbn_for(number))
+
+    body = api.get("/v1/books", params={"limit": 100}).json()
+
+    assert (len(body["items"]), body["total"], body["limit"]) == (3, 3, 100)
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["limit=-1", "limit=1000", "limit=", "limit=1e1", "limit=0x10", "offset=", "offset=abc"],
+)
+def test_malformed_paging_is_a_422(api: TestClient, query: str) -> None:
+    response = api.get(f"/v1/books?{query}")
+
+    assert response.status_code == 422
+    assert response.json()["errors"][0]["loc"][0] == "query"
+
+
+def test_the_configured_page_size_applies_when_no_limit_is_given() -> None:
+    client = TestClient(create_app(make_settings(default_page_size=5)))
+    for number in range(1, 8):
+        client.post("/v1/books", json=book_payload(isbn=isbn_for(number)))
+
+    body = client.get("/v1/books").json()
+
+    assert (len(body["items"]), body["limit"], body["total"]) == (5, 5, 7)
+    assert len(client.get("/v1/books", params={"limit": 7}).json()["items"]) == 7
+
+
+def test_successful_book_responses_are_application_json(api: TestClient) -> None:
+    created = api.post("/v1/books", json=book_payload())
+
+    for response in (created, api.get("/v1/books"), api.get(created.headers["Location"])):
+        assert response.headers["content-type"] == "application/json"
