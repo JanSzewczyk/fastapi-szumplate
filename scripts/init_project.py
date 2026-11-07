@@ -48,7 +48,7 @@ TEXT_SUFFIXES = {
     ".example",
     ".txt",
 }
-TEXT_NAMES = {"Makefile", "Dockerfile", ".dockerignore", ".gitignore", ".pre-commit-config.yaml"}
+TEXT_NAMES = {"Makefile", "Dockerfile", ".dockerignore", ".gitignore"}
 SKIP_DIRS = {
     ".git",
     ".venv",

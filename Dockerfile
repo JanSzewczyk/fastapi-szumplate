@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # The uv binary comes from a pinned image. Dependabot bumps only this tag, so
-# tests/test_tooling.py fails until UV_VERSION in ci.yml and the pre-commit rev match it.
+# tests/test_tooling.py fails until UV_VERSION in ci.yml matches it.
 FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
 
 FROM python:3.15-slim AS builder

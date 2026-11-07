@@ -1,4 +1,4 @@
-.PHONY: install hooks format lint typecheck imports test check run openapi openapi-check api-lint \
+.PHONY: install format lint typecheck imports test check run openapi openapi-check api-lint \
 	api-breaking schemathesis api-check audit docker-build docker-run clean
 .PHONY: smoke-template  # only:template
 
@@ -8,9 +8,6 @@ BASE_SPEC := .openapi-base.json
 
 install:
 	uv sync --locked
-
-hooks:
-	uv run pre-commit install
 
 format:
 	uv run ruff format .
