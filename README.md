@@ -17,11 +17,12 @@ example domain:
 ```bash
 python scripts/init_project.py orders-api                    # keep the example
 python scripts/init_project.py orders-api --without-example  # start from the bare service
-uv sync && make openapi && make check
+uv sync --locked && make openapi && make check
 ```
 
 The script renames the distribution, the package, its directory and every mention of the old
-name. Review the contact URL in `src/<package>/openapi.py` afterwards.
+name. Review the contact URL in `src/<package>/openapi.py` and the copyright holder in `LICENSE`
+afterwards.
 
 <!-- end:template -->
 ## Run it

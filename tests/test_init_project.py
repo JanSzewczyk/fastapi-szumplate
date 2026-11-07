@@ -22,7 +22,6 @@ IGNORED = shutil.ignore_patterns(
     ".import_linter_cache",
     ".coverage*",
     ".env",
-    "requirements.txt",
     ".openapi-base.json",
 )
 
@@ -48,6 +47,16 @@ def test_rename_moves_the_package_and_rewrites_every_name(project: Path) -> None
     pyproject = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
     assert pyproject["project"]["name"] == "orders-api"
     assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/orders_api"]
+
+
+def test_rename_leaves_other_checkouts_under_claude_alone(project: Path) -> None:
+    other = project / ".claude" / "worktrees" / "feature" / "main.py"
+    other.parent.mkdir(parents=True)
+    other.write_text("import fastapi_szumplate\n", encoding="utf-8")
+
+    init_project.main(["orders-api", "--root", str(project)])
+
+    assert other.read_text(encoding="utf-8") == "import fastapi_szumplate\n"
 
 
 def test_without_example_removes_the_domain_its_hook_settings_and_contracts(

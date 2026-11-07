@@ -2,7 +2,12 @@
 	api-breaking schemathesis api-check audit docker-build docker-run clean
 .PHONY: smoke-template  # only:template
 
+# bash for `set -o pipefail` in recipes (macOS make 3.81 has no .SHELLFLAGS).
+SHELL := bash
+
+# Pinned here, where Dependabot does not look: bump them by hand.
 SPECTRAL := npx --yes @stoplight/spectral-cli@6.17.1
+PIP_AUDIT := uvx pip-audit@2.10.1
 OASDIFF_IMAGE := tufin/oasdiff:v1.35.0
 BASE_SPEC := .openapi-base.json
 
@@ -66,9 +71,11 @@ schemathesis:
 
 api-check: openapi-check api-lint api-breaking schemathesis
 
+# Every dependency group, the contract tooling too. pipefail: a failed export must not pass as
+# an empty, clean audit.
 audit:
-	uv export --locked --no-emit-project -o requirements.txt
-	uvx pip-audit -r requirements.txt --disable-pip
+	set -o pipefail; uv export --locked --no-emit-project --all-groups --quiet \
+		| $(PIP_AUDIT) --disable-pip -r /dev/stdin
 
 docker-build:
 	docker build -t fastapi-szumplate:local .
@@ -89,5 +96,6 @@ smoke-template:
 
 # end:template
 clean:
-	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis .coverage requirements.txt $(BASE_SPEC)
-	find . -name __pycache__ -type d -prune -not -path "./.venv/*" -exec rm -rf {} +
+	rm -rf .mypy_cache .pytest_cache .ruff_cache .hypothesis .import_linter_cache .schemathesis \
+		htmlcov .coverage .coverage.* $(BASE_SPEC)
+	find . -path ./.venv -prune -o -name __pycache__ -type d -prune -exec rm -rf {} +

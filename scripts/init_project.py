@@ -59,6 +59,7 @@ SKIP_DIRS = {
     ".hypothesis",
     ".schemathesis",
     ".import_linter_cache",
+    ".claude",  # local agent settings and worktrees: other checkouts, not this project's files
 }
 EXAMPLE_DOCS = ("docs/how-to/remove-the-example.md", "docs/how-to/swap-in-a-database.md")
 # Words that name the example domain. "standard library" is the Python term and is allowed.
@@ -234,8 +235,9 @@ def main(argv: list[str] | None = None) -> int:
         remove_example(root, args.name.replace("-", "_"))
     drop_template_machinery(root)
     apply_audience(root, frozenset({"project", "bare" if args.without_example else "example"}))
-    print(f"Renamed to {args.name}. Next: review the contact URL in openapi.py, then")
-    print("  uv lock --check && make openapi && make check")
+    print(f"Renamed to {args.name}. Next: review the contact URL in openapi.py and the copyright")
+    print("holder in LICENSE, then")
+    print("  uv sync --locked && make openapi && make check")
     return 0
 
 
