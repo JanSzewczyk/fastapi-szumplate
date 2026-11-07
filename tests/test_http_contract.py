@@ -230,6 +230,13 @@ ERROR_CASES = [
         "Service not ready",
         id="503-service-not-ready",
     ),
+    pytest.param(
+        send_when_the_server_fails,
+        500,
+        "about:blank",
+        "Internal Server Error",
+        id="500-unhandled-exception",
+    ),
 ]
 
 

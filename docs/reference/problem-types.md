@@ -28,5 +28,5 @@ Errors the framework raises use `type` `about:blank` and the HTTP status phrase 
 | 405 | Wrong method; the `Allow` header lists every method of the path. |
 | 500 | Unhandled error. Fixed text, no exception details. |
 
-Every response carries an `X-Request-ID` header (exception: a 500 raised outside the routes, see
-the README). The same value is in the body as `request_id` and in every log line of the request.
+Every response carries an `X-Request-ID` header, a 500 included. The same value is in the body as
+`request_id` and in every log line of the request.

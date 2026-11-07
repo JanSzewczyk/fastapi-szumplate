@@ -8,7 +8,11 @@ from fastapi_szumplate.health.readiness import install_readiness
 from fastapi_szumplate.health.router import router as health_router
 from fastapi_szumplate.library import include_library
 from fastapi_szumplate.logging_config import configure_logging
-from fastapi_szumplate.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
+from fastapi_szumplate.middleware import (
+    REQUEST_ID_HEADER,
+    RequestContextMiddleware,
+    UnhandledErrorMiddleware,
+)
 from fastapi_szumplate.openapi import HEALTH_TAG, METADATA, install_openapi
 from fastapi_szumplate.problems import add_problem_handlers
 
@@ -40,7 +44,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     include_library(app)  # the example domain; remove this line and the import to drop it
 
-    # Starlette makes the last middleware added the outermost one.
+    # Starlette makes the last middleware added the outermost one: request context, then CORS,
+    # then the 500 answer, so a 500 problem carries the request id and the CORS headers.
+    app.add_middleware(UnhandledErrorMiddleware)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,

@@ -168,6 +168,20 @@ def test_unhandled_error_is_logged_as_status_500(
     assert (line["event"], line["status"], line["level"]) == ("request_completed", 500, "error")
 
 
+def test_the_traceback_of_an_unhandled_error_is_logged_once_on_the_request_line(
+    json_app: FastAPI, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @json_app.get("/boom", operation_id="get_boom_traceback_probe")
+    def boom() -> None:
+        raise RuntimeError("secret internals")
+
+    TestClient(json_app, raise_server_exceptions=False).get("/boom")
+
+    [line] = lines(capsys)
+    [exception] = line["exception"]
+    assert (exception["exc_type"], exception["exc_value"]) == ("RuntimeError", "secret internals")
+
+
 @pytest.mark.parametrize("log_format", ["json", "console"])
 def test_a_logged_traceback_keeps_the_frames_but_not_the_local_variables(
     log_format: Literal["json", "console"], capsys: pytest.CaptureFixture[str]
@@ -186,6 +200,25 @@ def test_a_logged_traceback_keeps_the_frames_but_not_the_local_variables(
     out = capsys.readouterr().out
     assert "sekret-token-1" not in out
     assert "handle_request" in out
+    assert "RuntimeError" in out
+
+
+@pytest.mark.parametrize("log_format", ["json", "console"])
+def test_an_unhandled_error_does_not_log_the_request_headers(
+    log_format: Literal["json", "console"], capsys: pytest.CaptureFixture[str]
+) -> None:
+    app = create_app(make_settings(log_format=log_format))
+
+    @app.get("/boom", operation_id="get_boom_secret_probe")
+    def boom() -> None:
+        raise RuntimeError("secret internals")
+
+    TestClient(app, raise_server_exceptions=False).get(
+        "/boom", headers={"Authorization": "Bearer sekret-token-1"}
+    )
+
+    out = capsys.readouterr().out
+    assert "sekret-token-1" not in out
     assert "RuntimeError" in out
 
 

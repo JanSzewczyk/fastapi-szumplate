@@ -97,10 +97,14 @@ when known, `request_id`. Validation errors add `errors` with only `loc`, `msg` 
 submitted value is never echoed. Clients branch on `type`. See
 [docs/reference/problem-types.md](docs/reference/problem-types.md).
 
-Known limits of the 500 response (checked against uvicorn): a crash outside the routes is answered
-by Starlette's outermost middleware, which sits outside `RequestContextMiddleware` and CORS. The
-body is the generic problem with the `request_id`, but the response has no `X-Request-ID` header
-and no CORS headers. The traceback is logged once, by uvicorn, with the `request_id` attached.
+A 500 is answered by `UnhandledErrorMiddleware`, the innermost middleware, so it carries the
+`X-Request-ID` header and, when CORS is on, the CORS headers (checked against uvicorn). The body is
+the generic problem with the `request_id`; the traceback is logged once, on the `request_completed`
+line of that request, without local variables. Known limits: if the application fails after the
+response has started, the status and headers are already sent and cannot be replaced, so the
+server cuts the connection and logs the traceback itself; a failure in the middleware themselves is
+answered by Starlette's backstop handler, still the generic problem but without `X-Request-ID` or
+CORS headers.
 
 ## Configuration
 

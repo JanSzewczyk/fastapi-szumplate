@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import Any
 
@@ -5,13 +6,17 @@ import pytest
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from fastapi_szumplate.main import create_app
+from fastapi_szumplate.middleware import UnhandledErrorMiddleware
 from fastapi_szumplate.problems import (
     PROBLEM_MEDIA_TYPE,
     ProblemType,
     domain_error_handler,
     problem_response,
 )
+from tests.conftest import make_settings
 
 PROBLEM_JSON = PROBLEM_MEDIA_TYPE
 
@@ -170,3 +175,69 @@ def test_problem_response_documents_each_type_slug() -> None:
 
     assert "`probe-refused`" in entry["description"]
     assert entry["content"] == {PROBLEM_JSON: {}}
+
+
+def test_an_unhandled_error_still_carries_the_cors_headers_and_the_request_id() -> None:
+    origin = "https://app.example.com"
+    app = create_app(make_settings(cors_origins=[origin]))
+
+    @app.get("/probe/boom", operation_id="get_probe_boom_cors")
+    def boom() -> None:
+        raise RuntimeError("internal detail that must not leak")
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/probe/boom", headers={"Origin": origin}
+    )
+
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.headers["X-Request-ID"] == response.json()["request_id"]
+
+
+def test_an_exception_after_the_response_started_is_not_swallowed() -> None:
+    async def half_a_response(scope: Scope, receive: Receive, send: Send) -> None:
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise RuntimeError("broke after the headers were sent")
+
+    client = TestClient(UnhandledErrorMiddleware(half_a_response))
+
+    with pytest.raises(RuntimeError, match="after the headers"):
+        client.get("/")
+
+
+def test_a_websocket_scope_passes_through_the_unhandled_error_middleware() -> None:
+    seen: list[str] = []
+
+    async def record(scope: Scope, receive: Receive, send: Send) -> None:
+        seen.append(scope["type"])
+
+    asyncio.run(UnhandledErrorMiddleware(record)({"type": "websocket"}, _no_receive, _no_send))
+
+    assert seen == ["websocket"]
+
+
+async def _no_receive() -> Message:
+    return {"type": "websocket.disconnect"}
+
+
+async def _no_send(_message: Message) -> None:
+    return None
+
+
+def test_a_failure_in_the_outermost_middleware_is_still_a_500_problem() -> None:
+    app = create_app(make_settings())
+
+    class Broken:
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            raise RuntimeError("middleware failed")
+
+    app.add_middleware(Broken)
+
+    response = TestClient(app, raise_server_exceptions=False).get("/health")
+
+    assert response.status_code == 500
+    assert response.headers["content-type"] == PROBLEM_JSON
+    assert "middleware failed" not in response.text
