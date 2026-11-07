@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.15"
 dependencies = [
     "fastapi>=0.162.0",
-    "pydantic-settings>=2.0.0",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
+    "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -18,13 +20,19 @@ build-backend = "hatchling.build"
 packages = ["src/fastapi_szumplate"]
 
 [dependency-groups]
+api = [
+    "schemathesis>=4.33.1",
+]
 dev = [
+    "import-linter>=2.16",
     "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
     "ruff>=0.17.4",
 ]
 test = [
     "coverage>=7.17.2",
     "httpx2>=2.16.0",
+    "hypothesis>=6.170.15",
     "pytest>=9.2.0",
     "pytest-randomly>=5.0.0",
     "pytest-timeout>=2.4.0",
@@ -35,7 +43,10 @@ line-length = 100
 target-version = "py315"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "S", "G", "LOG", "T20", "TRY400", "TRY401", "PT", "D"]
+select = [
+    "E", "F", "I", "UP", "B", "S", "G", "LOG", "T20", "TRY400", "TRY401", "PT", "D",
+    "PTH", "FURB", "TD",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["fastapi_szumplate", "tests"]
@@ -45,16 +56,21 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D", "S101"]
+"scripts/**" = ["T201", "D"]
 
 [tool.mypy]
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 mypy_path = "src"
+plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers --strict-config"
 timeout = 60
+markers = [
+    "concurrency: tests that fire competing requests in parallel to prove an atomic guard",
+]
 
 [tool.uv]
 default-groups = ["dev", "test"]
