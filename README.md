@@ -460,8 +460,13 @@ breaking change bumps the minor). Other types release nothing. A release updates
 `pyproject.toml` and `uv.lock`, pushes a `chore(release): X.Y.Z` commit and the `vX.Y.Z` tag, adds the
 release to `CHANGELOG.md` and creates the GitHub Release with generated notes. Preview the next
 version locally with `uv run --group release semantic-release version --noop --print`.
-The release step is commented out in the template; uncomment it in `release.yml` when you use the
-template for a project. If `main` is protected, the workflow's token must be allowed to push to it (a ruleset bypass).
+
+<!-- begin:template -->
+The release step is commented out in the template; `scripts/init_project.py` enables it in a copy.
+
+<!-- end:template -->
+
+If `main` is protected, the workflow's token must be allowed to push to it (a ruleset bypass).
 
 ---
 

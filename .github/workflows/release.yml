@@ -33,9 +33,11 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked --group release
+      # begin:template
       # Disabled in the template, so it does not cut releases of its own. When you use this template
-      # for a project, uncomment this step.
-      # - name: Release
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: uv run semantic-release version
+      # for a project, uncomment this step (scripts/init_project.py does it for you).
+      # end:template
+      # - name: Release  # uncomment:project
+      #   env:  # uncomment:project
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # uncomment:project
+      #   run: uv run semantic-release version  # uncomment:project
