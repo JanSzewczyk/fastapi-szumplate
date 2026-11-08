@@ -218,8 +218,7 @@ def test_the_release_step_is_enabled_in_a_project_copy(project: Path) -> None:
     assert init_project.main(["orders-api", "--root", str(project)]) == 0
 
     release = (project / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "      - name: Release\n        env:\n" in release
-    assert "        run: uv run semantic-release version\n" in release
+    assert "      - name: Create release 🚀\n        run: uv run semantic-release version\n        env:\n" in release
     assert "uncomment" not in release
     assert "template" not in release
 
