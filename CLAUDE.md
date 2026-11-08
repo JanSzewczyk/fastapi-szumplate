@@ -11,11 +11,14 @@ FastAPI service. Python 3.15, uv, Ruff, mypy (strict), pytest.
   Commit it with any change that alters the API.
 - `make api-check` runs Spectral, oasdiff and Schemathesis (needs Node, Docker or oasdiff).
 - Add dependencies with `uv add` (runtime) or `uv add --group test|dev|api`, and commit `uv.lock`.
+- `make audit` runs pip-audit on every locked dependency group.
+- One test: `uv run pytest tests/test_problems.py::test_name`. Order is random (pytest-randomly);
+  `-p no:randomly` replays it in file order. Warnings are errors (`filterwarnings = ["error"]`).
 
 ## Layout
 
 - Service core: `config.py`, `logging_config.py`, `middleware.py`, `problems.py`, `openapi.py`,
-  `types.py`, `pagination.py`, `health/`.
+  `types.py`, `pagination.py`, `query.py`, `health/`.
 <!-- begin:example -->
 - Example domain: `src/fastapi_szumplate/library/` and `tests/library/`, mounted by one
   `include_library(app)` call in `main.py`. Nothing else may import `library`. Remove it with
@@ -52,3 +55,19 @@ FastAPI service. Python 3.15, uv, Ruff, mypy (strict), pytest.
 - Route docstrings: summary and consumer prose only, no `Args:`/`Returns:` sections.
 - Do not lower `fail_under` in `pyproject.toml`. Do not skip or delete a failing test to get green.
 - Commit messages follow Conventional Commits: `type(scope): imperative summary`.
+
+## Gotchas
+
+- The uv version is pinned twice: the `uv` image in `Dockerfile` and `UV_VERSION` in
+  `.github/workflows/ci.yml` (`tests/test_tooling.py` checks they match). Dependabot does not
+  bump the Spectral, oasdiff and pip-audit pins in `Makefile`.
+- `README.md` must name every make target (`tests/test_docs.py`).
+- `uv run --python 3.15t` replaces `.venv` with the free-threaded build; `uv sync` restores it.
+<!-- begin:template -->
+- A line ending in an audience marker (`only:template`, `begin:example` … `end:example`, also as
+  `# ...` outside Markdown) is kept or dropped by `scripts/init_project.py` in a project copy.
+  Text that names the example (library, book, loan, isbn) must sit inside an `example` block,
+  or `make smoke-template` fails its reference check.
+- `tests/test_init_project.py` and `make smoke-template` copy tracked and untracked
+  (not ignored) files, so a stray file in the repo root can fail them. Move it out first.
+<!-- end:template -->
