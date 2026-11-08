@@ -71,7 +71,7 @@ All notable changes to this project are recorded here. The format follows
 - Packaging: `license = "MIT"` with the licence file in the wheel, a `Private :: Do Not Upload`
   classifier, a `fastapi-szumplate` console script, a bounded hatchling and a minimum uv version.
   Coverage also measures `scripts/`.
-- CI: actions pinned to commit hashes, runs on pushes to `main`, pull requests and on demand (a
+- CI: actions pinned to exact versions, runs on pushes to `main`, pull requests and on demand (a
   pull request commit is no longer tested twice), the weekly run no longer cancels a push run,
   jobs have timeouts and checkouts keep no credentials. The image job builds with Buildx and the
   GitHub Actions cache and waits for the image's own HEALTHCHECK to report `healthy`; the check
