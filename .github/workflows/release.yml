@@ -3,7 +3,7 @@ name: release
 # Every push to main: python-semantic-release reads the Conventional Commits since the last tag,
 # and when one of them is a feat, fix or perf (or a breaking change) it bumps the version in
 # pyproject.toml, refreshes uv.lock, pushes the release commit and the vX.Y.Z tag and creates the
-# GitHub Release. No such commit, no release. The release commit carries [skip ci].
+# GitHub Release. No such commit, no release.
 on:
   push:
     branches: [main]
@@ -36,4 +36,4 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run semantic-release version --no-changelog
+        run: uv run semantic-release version

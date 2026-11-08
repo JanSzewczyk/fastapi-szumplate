@@ -457,9 +457,9 @@ GitHub Actions and the Docker images, grouping minor and patch releases.
 Conventional Commits since the last tag: `feat` bumps the minor version, `fix` and `perf` the patch
 version, and `!` or a `BREAKING CHANGE:` footer the major version (while the version is `0.x`, a
 breaking change bumps the minor). Other types release nothing. A release updates `version` in
-`pyproject.toml` and `uv.lock`, pushes a `chore(release): X.Y.Z [skip ci]` commit and the `vX.Y.Z`
-tag, and creates the GitHub Release with generated notes. `CHANGELOG.md` stays hand-kept. Preview the
-next version locally with `uv run --group release semantic-release version --noop --no-changelog --print`.
+`pyproject.toml` and `uv.lock`, pushes a `chore(release): X.Y.Z` commit and the `vX.Y.Z` tag, adds the
+release to `CHANGELOG.md` and creates the GitHub Release with generated notes. Preview the next
+version locally with `uv run --group release semantic-release version --noop --print`.
 If `main` is protected, the workflow's token must be allowed to push to it (a ruleset bypass).
 
 ---
@@ -535,8 +535,8 @@ docs/                how-to guides, reference, explanation
 
 ## 📝 Changelog
 
-Notable changes are recorded in [CHANGELOG.md](CHANGELOG.md), in the
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+Releases and their changes are recorded in [CHANGELOG.md](CHANGELOG.md), generated from the
+Conventional Commits.
 
 ---
 
