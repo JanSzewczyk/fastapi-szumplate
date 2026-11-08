@@ -33,7 +33,9 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked --group release
-      - name: Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run semantic-release version
+      # Disabled in the template, so it does not cut releases of its own. When you use this template
+      # for a project, uncomment this step.
+      # - name: Release
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: uv run semantic-release version
