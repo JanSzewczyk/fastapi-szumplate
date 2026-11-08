@@ -19,7 +19,6 @@ DEFAULT_PATH = Path(__file__).resolve().parent.parent / "openapi.json"
 
 def render() -> str:
     """Return the OpenAPI document as stable JSON: sorted keys, two-space indent, final newline."""
-    # `model_construct` skips every settings source (`.env` and environment variables): defaults only.
     app = create_app(Settings.model_construct())
     return json.dumps(app.openapi(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 

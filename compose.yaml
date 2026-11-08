@@ -19,4 +19,3 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # The healthcheck comes from the image (Dockerfile HEALTHCHECK).
