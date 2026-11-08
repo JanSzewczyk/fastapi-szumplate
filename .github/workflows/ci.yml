@@ -16,7 +16,7 @@ permissions:
 # The event is part of the group, so the weekly run never cancels a push to main or the other way
 # round; only a newer commit of the same pull request cancels the older run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -68,42 +68,15 @@ jobs:
         with:
           context: . # the checkout, so .dockerignore applies as in a local build
           load: true
-          tags: fastapi-szumplate:ci
+          tags: fastapi-szumplate:local # the image compose.yaml runs
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Start the container and wait until its own HEALTHCHECK reports healthy
-        run: |
-          docker run -d --name api -p 8000:8000 --read-only --tmpfs /tmp fastapi-szumplate:ci
-          status=starting
-          for _ in $(seq 1 30); do
-            status="$(docker inspect --format '{{.State.Health.Status}}' api)"
-            [ "$status" = healthy ] && break
-            sleep 2
-          done
-          # Docker's port proxy accepts the connection before the app listens and then resets it
-          # (curl exit 56), which `--retry-connrefused` does not retry; `--retry-all-errors` does.
-          if [ "$status" != healthy ] || ! curl --silent --show-error --fail --retry 5 --retry-delay 2 \
-            --retry-all-errors http://127.0.0.1:8000/health; then
-            echo "health status: $status"
-            docker logs api
-            exit 1
-          fi
-          docker logs api
-          docker stop api
-      # compose.yaml drops every capability and sets no-new-privileges, which `docker run` above
-      # does not, so it is started and called on its own. `--wait` waits for the image HEALTHCHECK.
-      - name: Start the compose service and call the health endpoint
-        run: |
-          docker compose config --quiet
-          if ! docker compose up -d --build --wait --wait-timeout 90 \
-            || ! curl --silent --show-error --fail --retry 15 --retry-delay 2 --retry-all-errors \
-              http://127.0.0.1:8000/health; then
-            docker compose logs
-            exit 1
-          fi
-      - name: Stop the compose service
-        if: always()
-        run: docker compose down
+      # compose.yaml runs it read-only, without capabilities and with no-new-privileges; `--wait`
+      # waits for the image HEALTHCHECK.
+      - run: docker compose up --detach --no-build --wait --wait-timeout 90
+      - run: curl --silent --show-error --fail --retry 3 --retry-all-errors http://127.0.0.1:8000/health
+      - if: failure()
+        run: docker compose logs
 
   # begin:template
   # Proves that a project made from the template passes its own `make check`, with and without
@@ -139,5 +112,6 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           version: ${{ env.UV_VERSION }}
-      - run: uv sync --locked --python 3.15t
-      - run: uv run --python 3.15t pytest
+          python-version: "3.15t"
+      - run: uv sync --locked
+      - run: uv run pytest
