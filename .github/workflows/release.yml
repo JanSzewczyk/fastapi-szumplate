@@ -1,4 +1,4 @@
-name: release
+name: Release 🚀
 
 # Every push to main: python-semantic-release reads the Conventional Commits since the last tag,
 # and when one of them is a feat, fix or perf (or a breaking change) it bumps the version in
@@ -21,23 +21,28 @@ env:
 
 jobs:
   release:
+    name: Release 🚀
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write # push the release commit and tag, create the GitHub Release
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Checkout code 📚
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # the tags and the commit history decide the next version
-      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Set up uv 🐍
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: ${{ env.UV_VERSION }}
-      - run: uv sync --locked --group release
+      - name: Install dependencies ⚙️
+        run: uv sync --locked --group release
       # begin:template
-      # Disabled in the template, so it does not cut releases of its own. When you use this template
-      # for a project, uncomment this step (scripts/init_project.py does it for you).
+      #        HERE 👇👇👇
+      #        Expose block of code below when you use this template for a project
+      #        (scripts/init_project.py does it for you); the template cuts no releases of its own.
       # end:template
-      # - name: Release  # uncomment:project
+      # - name: Create release 🚀  # uncomment:project
+      #   run: uv run semantic-release version  # uncomment:project
       #   env:  # uncomment:project
       #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # uncomment:project
-      #   run: uv run semantic-release version  # uncomment:project
