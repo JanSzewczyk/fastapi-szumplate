@@ -12,6 +12,8 @@ FastAPI service. Python 3.15, uv, Ruff, mypy (strict), pytest.
 - `make api-check` runs Spectral, oasdiff and Schemathesis (needs Node, Docker or oasdiff).
 - Add dependencies with `uv add` (runtime) or `uv add --group test|dev|api`, and commit `uv.lock`.
 - `make audit` runs pip-audit on every locked dependency group.
+- `make docker-build` builds the image; `make docker-run` runs it (needs a `.env`, copy `.env.example`).
+  `make clean` removes caches and generated files.
 - One test: `uv run pytest tests/test_problems.py::test_name`. Order is random (pytest-randomly);
   `-p no:randomly` replays it in file order. Warnings are errors (`filterwarnings = ["error"]`).
 
@@ -63,6 +65,9 @@ FastAPI service. Python 3.15, uv, Ruff, mypy (strict), pytest.
   bump the Spectral, oasdiff and pip-audit pins in `Makefile`.
 - `README.md` must name every make target (`tests/test_docs.py`).
 - `uv run --python 3.15t` replaces `.venv` with the free-threaded build; `uv sync` restores it.
+- CI jobs `check` (`make check`) and `audit` (`make audit`) are separate, so a new advisory does not
+  hide the code checks. Branch protection lists them by name (`Check ✅`, `Audit 🔒`); renaming one
+  leaves pull requests waiting for a status that never arrives.
 <!-- begin:template -->
 - A line ending in an audience marker (`only:template`, `begin:example` … `end:example`, also as
   `# ...` outside Markdown) is kept or dropped by `scripts/init_project.py` in a project copy.
