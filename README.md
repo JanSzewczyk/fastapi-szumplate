@@ -442,7 +442,8 @@ default). Behind a proxy, also set uvicorn's `FORWARDED_ALLOW_IPS`.
 
 `.github/workflows/ci.yml` runs on pushes to `main`, on pull requests, weekly and on demand:
 
-- `check` — `make check`, a coverage summary and the dependency audit; the only job of the weekly run
+- `check` — `make check` and a coverage summary
+- `audit` — the dependency audit (`make audit`), apart from `check` so a new advisory does not hide the code checks; with `check`, the weekly run
 - `api` — Spectral, oasdiff against `main` and Schemathesis (`make api-check`)
 - `docker` — builds the image and starts it through `compose.yaml` until its health check passes, then calls `/health`
 - `template-smoke` — renames a copy, with and without the example, then runs `make check` <!-- only:template -->
