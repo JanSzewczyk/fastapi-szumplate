@@ -7,6 +7,7 @@ __pycache__/
 .hypothesis/
 .coverage
 .idea/
+.import_linter_cache
 .coverage.*
 htmlcov/
 .env.*
@@ -15,3 +16,4 @@ htmlcov/
 .DS_Store
 .openapi-base.json
 .schemathesis/
+graphify-out/
