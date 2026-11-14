@@ -2,7 +2,7 @@
 
 # The uv binary comes from a pinned image. Dependabot bumps only this tag, so
 # tests/test_tooling.py fails until UV_VERSION in ci.yml matches it.
-FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
 FROM python:3.15-slim AS builder
 COPY --from=uv /uv /uvx /bin/
